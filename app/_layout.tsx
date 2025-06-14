@@ -1,29 +1,42 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
+import { Stack } from "expo-router";
+import { COLORS } from "./constants/theme";
 
-import { useColorScheme } from '@/hooks/useColorScheme';
+// Define the route types
+declare global {
+  namespace ReactNavigation {
+    interface RootParamList {
+      "/": undefined;
+      "/booking-details/[id]": { id: string };
+      "/bookings": undefined;
+      "/profile": undefined;
+      "/edit-profile": undefined;
+      "/change-password": undefined;
+      "/worker-dashboard": undefined;
+      "/worker-profile": undefined;
+      "/worker-edit-profile": undefined;
+      "/worker-schedule": undefined;
+      "/worker-earnings": undefined;
+      "/worker-reviews": undefined;
+      "/worker-notifications": undefined;
+      "/worker-settings": undefined;
+      "/help-support": undefined;
+    }
+  }
+}
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
-
-  if (!loaded) {
-    // Async font loading only occurs in development.
-    return null;
-  }
-
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <Stack
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: COLORS.white,
+        },
+        headerShadowVisible: false,
+        headerTitleStyle: {
+          color: COLORS.textPrimary,
+        },
+        headerTintColor: COLORS.textPrimary,
+      }}
+    />
   );
 }

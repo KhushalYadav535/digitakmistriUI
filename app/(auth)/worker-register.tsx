@@ -1,0 +1,1 @@
+// This file has been removed. Worker self-registration is disabled. Only admin can create workers now.

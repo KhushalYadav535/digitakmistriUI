@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "digital",
+    "name": "Digital Mistri",
     "slug": "digital",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/applogo.jpeg",
     "scheme": "digital",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -16,7 +16,13 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.khushalyadav535.digital",
+      "versionCode": 1,
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -37,6 +43,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "60c45553-9a4e-4650-92ea-0e4c4cf2fe76"
+      }
     }
   }
 }
