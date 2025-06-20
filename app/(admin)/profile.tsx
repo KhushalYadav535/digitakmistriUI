@@ -7,6 +7,7 @@ import { COLORS, FONTS, SHADOWS, SIZES } from '../constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_URL } from '../constants/config';
+import { socket } from '../utils/api';
 
 const settings = [
   {
@@ -23,6 +24,15 @@ const settings = [
   },
 ];
 
+interface AdminNotification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  time: string;
+  read: boolean;
+}
+
 const AdminProfileScreen = () => {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -32,6 +42,7 @@ const AdminProfileScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [success, setSuccess] = useState('');
+  const [notifications, setNotifications] = useState<AdminNotification[]>([]);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -52,6 +63,49 @@ const AdminProfileScreen = () => {
       }
     };
     fetchProfile();
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchNotifications();
+
+    // Connect socket and register admin for real-time notifications
+    const setupSocket = async () => {
+      const userStr = await AsyncStorage.getItem('user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        socket.connect();
+        socket.emit('register', { userId: user.id || user._id, role: 'admin' });
+        socket.on('notification', (notification) => {
+          setNotifications((prev) => {
+            // Avoid duplicate notifications by checking message+type+time
+            const exists = prev.some(
+              (n) => n.message === notification.message && n.type === notification.type && Math.abs(new Date(n.time).getTime() - Date.now()) < 1000
+            );
+            if (exists) return prev;
+            return [
+              {
+                id: Date.now().toString(),
+                type: notification.type,
+                title: notification.title || 'Notification',
+                message: notification.message,
+                time: new Date().toLocaleString(),
+                read: false,
+              },
+              ...prev,
+            ];
+          });
+        });
+      }
+    };
+    setupSocket();
+
+    // Cleanup on unmount
+    return () => {
+      isMounted = false;
+      socket.off('notification');
+      socket.disconnect();
+    };
   }, []);
 
   const handleSave = async () => {
@@ -83,10 +137,31 @@ const AdminProfileScreen = () => {
   const handleLogout = async () => {
     try {
       await AsyncStorage.multiRemove(['token', 'user']);
-      router.replace('/(auth)/login' as any);
+      router.replace('/(auth)/role-selection' as any);
     } catch (error) {
       console.error('Logout error:', error);
       Alert.alert('Error', 'Failed to logout. Please try again.');
+    }
+  };
+
+  const fetchNotifications = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_URL}/notifications`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      setNotifications((prev) => {
+        // Merge API notifications with any real-time ones already in state
+        const apiNotifs = response.data.notifications || [];
+        const merged = [...apiNotifs, ...prev.filter(rt => !apiNotifs.some((an: AdminNotification) => an.id === rt.id))];
+        return merged;
+      });
+    } catch (error: any) {
+      setError(error.response?.data?.message || 'Error fetching notifications');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -205,6 +280,30 @@ const AdminProfileScreen = () => {
             <Text style={styles.infoLabel}>Build Number</Text>
             <Text style={styles.infoValue}>2024031501</Text>
           </View>
+        </Card>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Notifications</Text>
+        <Card variant="flat" style={styles.notificationsCard}>
+          {notifications.length === 0 ? (
+            <Text>No notifications</Text>
+          ) : (
+            notifications.map((notification) => (
+              <Card
+                key={notification.id}
+                variant="elevated"
+                style={{ marginBottom: 12 }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <Ionicons name="notifications" size={20} color={'#007bff'} style={{ marginRight: 8 }} />
+                  <Text style={{ fontWeight: 'bold' }}>{notification.title}</Text>
+                  <Text style={{ marginLeft: 'auto', color: '#888', fontSize: 12 }}>{notification.time}</Text>
+                </View>
+                <Text>{notification.message}</Text>
+              </Card>
+            ))
+          )}
         </Card>
       </View>
 
@@ -363,6 +462,9 @@ const styles = StyleSheet.create({
     fontSize: FONTS.body3.fontSize,
     color: COLORS.textPrimary,
     fontWeight: '500',
+  },
+  notificationsCard: {
+    padding: SIZES.medium,
   },
   logoutButton: {
     flexDirection: 'row',

@@ -99,7 +99,9 @@ const OnboardingScreen = () => {
       <View style={styles.skipContainer}>
         <TouchableOpacity
           style={styles.skipButton}
-          onPress={() => router.push('/(auth)/language' as any)}
+          onPress={() => {
+            router.replace('/(auth)/role-selection' as any);
+          }}
         >
           <Text style={styles.skipText}>Skip</Text>
         </TouchableOpacity>

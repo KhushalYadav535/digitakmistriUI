@@ -93,7 +93,7 @@ const AdminDashboardScreen = () => {
       value: overview?.totalWorkers ?? '-',
       icon: 'people',
       color: COLORS.primary,
-      onPress: () => router.push({ pathname: '/(admin)/workers' }),
+      onPress: () => router.push('/(admin)/workers'),
     },
     {
       id: 'activeJobs',
@@ -130,7 +130,7 @@ const AdminDashboardScreen = () => {
         </View>
         <TouchableOpacity
           style={styles.profileButton}
-          onPress={() => router.push('/(admin)/profile' as any)}
+          onPress={() => router.push('/(admin)/profile')}
         >
           <Ionicons name="person-circle" size={40} color={COLORS.primary} />
         </TouchableOpacity>

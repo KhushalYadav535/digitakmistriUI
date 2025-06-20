@@ -47,7 +47,7 @@ const LoginScreen = () => {
       setLoading(true);
       console.log('Attempting login with email:', email);
       
-      const response = await axios.post(`${API_URL}/auth/login`, {
+      const response = await axios.post(`${API_URL}/customer/login`, {
         email,
         password
       });

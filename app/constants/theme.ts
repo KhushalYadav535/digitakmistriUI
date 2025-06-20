@@ -12,15 +12,19 @@ export const COLORS = {
   background: '#F2F2F7',
   white: '#FFFFFF',
   black: '#000000',
+  text: '#000000',
   textPrimary: '#000000',
   textSecondary: '#8E8E93',
   border: '#C6C6C8',
+  lightGray: '#E5E5EA',
+  gray: '#8E8E93',
+  darkGray: '#636366',
   card: '#FFFFFF',
   input: '#FFFFFF',
   placeholder: '#8E8E93',
   disabled: '#C7C7CC',
   overlay: 'rgba(0, 0, 0, 0.5)',
-};
+} as const;
 
 export const SIZES = {
   base: 8,
@@ -29,20 +33,22 @@ export const SIZES = {
   large: 20,
   xlarge: 24,
   xxlarge: 32,
+  padding: 16,
+  radius: 8,
 };
 
 export const FONTS = {
   h1: {
     fontSize: 32,
-    fontWeight: '700',
+    fontWeight: '700' as const,
   },
   h2: {
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: '700' as const,
   },
   h3: {
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: '600' as const,
   },
   h4: {
     fontSize: 18,
@@ -50,15 +56,15 @@ export const FONTS = {
   },
   body1: {
     fontSize: 16,
-    fontWeight: '400',
+    fontWeight: '400' as const,
   },
   body2: {
     fontSize: 14,
-    fontWeight: '400',
+    fontWeight: '400' as const,
   },
   body3: {
     fontSize: 12,
-    fontWeight: '400',
+    fontWeight: '400' as const,
   },
   body4: {
     fontSize: 10,
@@ -68,7 +74,7 @@ export const FONTS = {
     fontSize: 8,
     fontWeight: '400',
   },
-};
+} as const;
 
 export const SHADOWS = {
   small: {

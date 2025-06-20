@@ -1,1 +1,1 @@
-export const API_URL = 'https://digital-mistri.onrender.com/api'; 
+// Remove any API_URL export from this file. 

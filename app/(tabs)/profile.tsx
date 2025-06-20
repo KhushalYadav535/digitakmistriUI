@@ -28,7 +28,7 @@ const ProfileScreen = () => {
   const handleLogout = async () => {
     try {
       await AsyncStorage.multiRemove(['token', 'user']);
-      router.replace('/login');
+      router.replace('/(auth)/role-selection' as any);
     } catch (error) {
       console.error('Error during logout:', error);
     }
@@ -52,7 +52,7 @@ const ProfileScreen = () => {
         />
         <Text style={styles.userName}>{user?.name || 'Your Name'}</Text>
         <Text style={styles.userEmail}>{user?.email || 'your@email.com'}</Text>
-        <TouchableOpacity style={styles.editButton}>
+        <TouchableOpacity style={styles.editButton} onPress={() => router.push('/edit-profile' as any)}>
           <Ionicons name="pencil" size={18} color={COLORS.primary} />
           <Text style={styles.editButtonText}>Edit</Text>
         </TouchableOpacity>

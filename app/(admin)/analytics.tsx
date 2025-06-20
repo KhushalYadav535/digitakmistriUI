@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, ActivityIndicator, TouchableOpacity } from 'react-native';
 import Card from '../../components/Card';
 import { COLORS, FONTS, SHADOWS, SIZES } from '../constants/theme';
 import axios from 'axios';
@@ -14,6 +14,12 @@ const AdminAnalyticsScreen = () => {
   const [serviceStats, setServiceStats] = useState<any[]>([]);
   const [topWorkers, setTopWorkers] = useState<any[]>([]);
   const [newWorkers, setNewWorkers] = useState<any[]>([]);
+  const [dashboardStats, setDashboardStats] = useState({
+    totalWorkers: 0,
+    totalActiveJobs: 0,
+    totalEarnings: 0,
+    newRequests: 0
+  });
 
   useEffect(() => {
     const fetchAnalytics = async () => {
@@ -21,19 +27,32 @@ const AdminAnalyticsScreen = () => {
         setLoading(true);
         setError('');
         const token = await AsyncStorage.getItem('token');
+        
         const res = await axios.get(`${API_URL}/admin/analytics/overview`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = res.data;
+
         setRevenueData({
-          daily: data.revenue.daily,
-          weekly: data.revenue.weekly,
-          monthly: data.revenue.monthly,
+          daily: data.revenue?.daily || 0,
+          weekly: data.revenue?.weekly || 0,
+          monthly: data.revenue?.monthly || 0,
         });
-        setServiceStats(data.services);
-        setTopWorkers(data.topWorkers);
-        setNewWorkers(data.newWorkers);
-      } catch (err) {
+        setServiceStats(data.services || []);
+        setTopWorkers(data.topWorkers || []);
+        setNewWorkers(data.newWorkers || []);
+        
+        // Set dashboard stats from the overview data
+        setDashboardStats({
+          totalWorkers: data.totalWorkers || 0,
+          totalActiveJobs: data.activeJobs || 0,
+          totalEarnings: data.totalEarnings || 0,
+          newRequests: data.newRequests || 0
+        });
+
+        console.log('Analytics Data:', data); // Debug log
+      } catch (err: any) {
+        console.error('Analytics error:', err.response?.data || err.message);
         setError('Failed to load analytics');
       } finally {
         setLoading(false);
@@ -41,6 +60,11 @@ const AdminAnalyticsScreen = () => {
     };
     fetchAnalytics();
   }, []);
+
+  const handleCardPress = (type: string) => {
+    // TODO: Navigate to detailed view based on card type
+    console.log(`Navigate to ${type} details`);
+  };
 
   if (loading) {
     return (
@@ -63,28 +87,72 @@ const AdminAnalyticsScreen = () => {
         <Text style={styles.title}>Analytics Dashboard</Text>
       </View>
 
+      <View style={styles.dashboardStats}>
+        <TouchableOpacity onPress={() => handleCardPress('workers')}>
+          <Card variant="elevated" style={styles.statCard}>
+            <View style={styles.statIconContainer}>
+              <Ionicons name="people" size={24} color={COLORS.primary} />
+            </View>
+            <Text style={styles.statValue}>{dashboardStats.totalWorkers}</Text>
+            <Text style={styles.statLabel}>Total Workers</Text>
+          </Card>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => handleCardPress('activeJobs')}>
+          <Card variant="elevated" style={styles.statCard}>
+            <View style={styles.statIconContainer}>
+              <Ionicons name="briefcase" size={24} color={COLORS.success} />
+            </View>
+            <Text style={styles.statValue}>{dashboardStats.totalActiveJobs}</Text>
+            <Text style={styles.statLabel}>Active Jobs</Text>
+          </Card>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.dashboardStats}>
+        <TouchableOpacity onPress={() => handleCardPress('earnings')}>
+          <Card variant="elevated" style={styles.statCard}>
+            <View style={styles.statIconContainer}>
+              <Ionicons name="cash" size={24} color={COLORS.warning} />
+            </View>
+            <Text style={styles.statValue}>₹{dashboardStats.totalEarnings}</Text>
+            <Text style={styles.statLabel}>Total Earnings</Text>
+          </Card>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => handleCardPress('requests')}>
+          <Card variant="elevated" style={styles.statCard}>
+            <View style={styles.statIconContainer}>
+              <Ionicons name="notifications" size={24} color={COLORS.error} />
+            </View>
+            <Text style={styles.statValue}>{dashboardStats.newRequests}</Text>
+            <Text style={styles.statLabel}>New Requests</Text>
+          </Card>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.revenueSection}>
         <Text style={styles.sectionTitle}>Revenue Overview</Text>
         <View style={styles.revenueCards}>
-          <Card variant="elevated" style={styles.revenueCard}>
+          <Card key="daily" variant="elevated" style={styles.revenueCard}>
             <Text style={styles.revenueLabel}>Daily Revenue</Text>
-            <Text style={styles.revenueValue}>{revenueData.daily}</Text>
+            <Text style={styles.revenueValue}>₹{revenueData.daily}</Text>
           </Card>
-          <Card variant="elevated" style={styles.revenueCard}>
+          <Card key="weekly" variant="elevated" style={styles.revenueCard}>
             <Text style={styles.revenueLabel}>Weekly Revenue</Text>
-            <Text style={styles.revenueValue}>{revenueData.weekly}</Text>
+            <Text style={styles.revenueValue}>₹{revenueData.weekly}</Text>
           </Card>
-          <Card variant="elevated" style={styles.revenueCard}>
+          <Card key="monthly" variant="elevated" style={styles.revenueCard}>
             <Text style={styles.revenueLabel}>Monthly Revenue</Text>
-            <Text style={styles.revenueValue}>{revenueData.monthly}</Text>
+            <Text style={styles.revenueValue}>₹{revenueData.monthly}</Text>
           </Card>
         </View>
       </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Service Performance</Text>
-        {serviceStats.map((service) => (
-          <Card key={service.id} variant="elevated" style={styles.serviceCard}>
+        {serviceStats.map((service, idx) => (
+          <Card key={service.id || service._id || idx} variant="elevated" style={styles.serviceCard}>
             <View style={styles.serviceHeader}>
               <Text style={styles.serviceName}>{service.name}</Text>
               <Text style={styles.serviceRevenue}>{service.revenue}</Text>
@@ -107,8 +175,8 @@ const AdminAnalyticsScreen = () => {
         <Text style={styles.sectionTitle}>Worker Performance</Text>
         <Card variant="elevated" style={styles.workerCard}>
           <Text style={styles.workerCardTitle}>Top Performing Workers</Text>
-          {topWorkers.map((worker, index) => (
-            <View key={index} style={styles.workerItem}>
+          {topWorkers.map((worker, idx) => (
+            <View key={worker.id || worker._id || idx} style={styles.workerItem}>
               <View style={styles.workerInfo}>
                 <Text style={styles.workerName}>{worker.name}</Text>
                 <Text style={styles.workerJobs}>{worker.jobs} jobs completed</Text>
@@ -122,8 +190,8 @@ const AdminAnalyticsScreen = () => {
         </Card>
         <Card variant="elevated" style={styles.workerCard}>
           <Text style={styles.workerCardTitle}>New Workers</Text>
-          {newWorkers.map((worker, index) => (
-            <View key={index} style={styles.workerItem}>
+          {newWorkers.map((worker, idx) => (
+            <View key={worker.id || worker._id || idx} style={styles.workerItem}>
               <View style={styles.workerInfo}>
                 <Text style={styles.workerName}>{worker.name}</Text>
                 <Text style={styles.workerJobs}>{worker.jobs} jobs completed</Text>
@@ -257,6 +325,38 @@ const styles = StyleSheet.create({
     fontSize: FONTS.body4.fontSize,
     color: COLORS.warning,
     marginLeft: SIZES.base,
+  },
+  dashboardStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: SIZES.medium,
+    gap: SIZES.medium,
+  },
+  statCard: {
+    flex: 1,
+    padding: SIZES.medium,
+    alignItems: 'center',
+    minWidth: 150,
+  },
+  statIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SIZES.base,
+  },
+  statValue: {
+    fontSize: FONTS.h3.fontSize,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+    marginBottom: SIZES.base,
+  },
+  statLabel: {
+    fontSize: FONTS.body4.fontSize,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
   },
 });
 

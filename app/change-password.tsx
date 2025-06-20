@@ -14,8 +14,7 @@ import {
 import { COLORS, FONTS, SHADOWS, SIZES } from './constants/theme';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const API_URL = 'https://digital-mistri.onrender.com/api';
+import { API_URL } from './constants/config';
 
 const ChangePasswordScreen = () => {
   const [formData, setFormData] = useState({

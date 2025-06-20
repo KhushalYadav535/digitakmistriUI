@@ -1,19 +1,38 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Image } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Image, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../constants/theme';
+import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 import { router } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Animated } from 'react-native';
+import * as Location from 'expo-location';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_URL } from '../constants/config';
+
+interface Shop {
+  _id: string;
+  name: string;
+  description: string;
+  address: {
+    street: string;
+    city: string;
+    state: string;
+    pincode: string;
+  };
+  phone: string;
+  email: string;
+  services: string[];
+  workingHours: {
+    [key: string]: { open: string; close: string };
+  };
+  images: string[];
+  rating: number;
+  reviews: any[];
+}
 
 const services = [
-  {
-    id: 'handpump',
-    name: 'Handpump Mistri',
-    image: require('../../assets/images/handpump.jpg'),
-  },
   {
     id: 'plumber',
     name: 'Plumber',
@@ -27,34 +46,12 @@ const services = [
   {
     id: 'electronic',
     name: 'Electronic',
-    image: require('../../assets/images/electrician.jpeg'), // Placeholder, update if you have a separate image
-  },
-];
-
-const nearbyShops = [
-  {
-    id: '1',
-    name: 'City Plumbing Services',
-    rating: 4.8,
-    reviews: 128,
-    distance: '0.8 km',
-    image: 'https://via.placeholder.com/100',
+    image: require('../../assets/images/electrician.jpeg'),
   },
   {
-    id: '2',
-    name: 'Quick Fix Electrical',
-    rating: 4.6,
-    reviews: 95,
-    distance: '1.2 km',
-    image: 'https://via.placeholder.com/100',
-  },
-  {
-    id: '3',
-    name: 'Pro Painters',
-    rating: 4.9,
-    reviews: 156,
-    distance: '1.5 km',
-    image: 'https://via.placeholder.com/100',
+    id: 'handpumpmistri',
+    name: 'Handpump Mistri',
+    image: require('../../assets/images/handpump.jpg'),
   },
 ];
 
@@ -65,12 +62,18 @@ const getGreeting = () => {
   return 'Good Evening';
 };
 
-const HomeScreen = () => {
+const TabLayout = () => {
   const [user, setUser] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [nearbyShops, setNearbyShops] = useState<Shop[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userLocation, setUserLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   // Animation for fade-in
-  const fadeAnim = React.useRef(new Animated.Value(0)).current;
   React.useEffect(() => {
     Animated.timing(fadeAnim, {
       toValue: 1,
@@ -89,147 +92,210 @@ const HomeScreen = () => {
     fetchUser();
   }, []);
 
+  useEffect(() => {
+    getLocation();
+  }, []);
+
+  useEffect(() => {
+    if (userLocation) {
+      loadNearbyShops();
+    }
+  }, [userLocation]);
+
+  const getLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        console.log('Location permission denied');
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({});
+      setUserLocation({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude
+      });
+    } catch (error) {
+      console.error('Error getting location:', error);
+    }
+  };
+
+  const loadNearbyShops = async () => {
+    try {
+      setLoading(true);
+      const token = await AsyncStorage.getItem('token');
+      console.log('Loading nearby shops with location:', userLocation);
+      const response = await axios.get(`${API_URL}/nearby-shops`, {
+        params: {
+          latitude: userLocation?.latitude,
+          longitude: userLocation?.longitude,
+          radius: 5 // 5km radius
+        },
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      console.log('Nearby shops loaded:', response.data);
+      setNearbyShops(response.data);
+
+      // Animate the shops appearing
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }).start();
+    } catch (error) {
+      console.error('Error loading nearby shops:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <LinearGradient
-      colors={["#ff90d6", "#f3b6f7", "#8ee7f7"]}
+      colors={["#F8FFAE", "#43C6AC", "#191654"]}
       style={styles.gradientBg}
     >
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.logoBrandContainer}>
-          <Image source={require('../../assets/images/applogo.jpeg')} style={styles.logo} />
-          <Text style={styles.brand}>DIGITAL MISTRI</Text>
-        </View>
-        {/* Featured Banner */}
-        <View style={styles.bannerContainer}>
-          <LinearGradient colors={["#ffecd2", "#fcb69f"]} style={styles.bannerBg}>
-            <Ionicons name="pricetag" size={28} color="#ff90d6" style={{ marginRight: 10 }} />
-            <Text style={styles.bannerText}>Get 20% off on your first service!</Text>
-          </LinearGradient>
-        </View>
-        <View style={styles.header}>
-          <Ionicons name="person-circle" size={36} color={COLORS.primary} style={{ marginRight: 10 }} />
-          <View>
-            <Text style={styles.greeting}>{getGreeting()},</Text>
-            <Text style={styles.userName}>{user?.name || 'User'}</Text>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          <View style={styles.logoBrandContainer}>
+            <Image source={require('../../assets/images/applogo.jpeg')} style={styles.logo} />
+            <Text style={styles.brand}>DIGITAL MISTRI</Text>
           </View>
-        </View>
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color={COLORS.textSecondary} style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search for services..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Services</Text>
-          <View style={styles.servicesGrid}>
-            {services.map((service, idx) => (
-              <Animated.View
-                key={service.id}
-                style={{ opacity: fadeAnim, transform: [{ scale: fadeAnim }], width: '50%' }}
-              >
-                <TouchableOpacity
-                  style={styles.serviceCard}
-                  onPress={() => router.push({ pathname: `/service/${service.id}` } as any)}
-                  activeOpacity={0.85}
+          <View style={styles.greetingContainer}>
+            <Text style={styles.greeting}>{getGreeting()}</Text>
+            <Text style={styles.userName}>{user?.name || 'Guest'}</Text>
+          </View>
+          <View style={styles.searchContainer}>
+            <TextInput
+              style={styles.searchInput}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search"
+            />
+          </View>
+          <View style={styles.section}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+              <LinearGradient 
+                colors={["#43C6AC", "#191654"]} 
+                style={{ width: 6, height: 28, borderRadius: 3, marginRight: 10 }}
+              />
+              <Text style={[styles.sectionTitle, { fontSize: 22, letterSpacing: 1 }]}>Services</Text>
+            </View>
+            <View style={styles.servicesGrid}>
+              {services.map((service, idx) => (
+                <Animated.View
+                  key={service.id}
+                  style={{ opacity: fadeAnim, transform: [{ scale: fadeAnim }], width: '50%' }}
                 >
-                  <View style={styles.serviceImageWrapper}>
-                    <Image source={service.image} style={styles.serviceImage} />
-                  </View>
-                  <Text style={styles.serviceName}>{service.name}</Text>
-                </TouchableOpacity>
-              </Animated.View>
-            ))}
+                  <TouchableOpacity
+                    style={[styles.serviceCard, { backgroundColor: 'rgba(255,255,255,0.65)', borderWidth: 1, borderColor: '#e0e0e0', shadowColor: '#43C6AC', shadowOpacity: 0.10, shadowRadius: 22, elevation: 6 }]}
+                    onPressIn={() => Animated.spring(fadeAnim, { toValue: 1.08, useNativeDriver: true }).start()}
+                    onPressOut={() => Animated.spring(fadeAnim, { toValue: 1, useNativeDriver: true }).start()}
+                    onPress={() => router.push({ 
+                      pathname: '/service-details', 
+                      params: { serviceId: service.id } 
+                    } as any)}
+                    activeOpacity={0.88}
+                  >
+                    <BlurView intensity={30} tint="light" style={[styles.serviceImageWrapper, { borderWidth: 0 }]}>
+                      <Image source={service.image} style={styles.serviceImage} />
+                    </BlurView>
+                    <Text style={[styles.serviceName, { color: '#191654', fontWeight: 'bold', fontSize: 18 }]}>{service.name}</Text>
+                  </TouchableOpacity>
+                </Animated.View>
+              ))}
+            </View>
           </View>
-        </View>
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Nearby Shops</Text>
-            <TouchableOpacity onPress={() => router.push({ pathname: '/nearby' } as any)}>
-              <Text style={styles.seeAllText}>See All</Text>
-            </TouchableOpacity>
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.shopsContainer}>
-            {nearbyShops.map((shop, idx) => (
-              <Animated.View
-                key={shop.id}
-                style={{ opacity: fadeAnim, transform: [{ scale: fadeAnim }] }}
-              >
-                <BlurView intensity={40} tint="light" style={styles.shopCard}>
-                  <View style={styles.shopImageWrapper}>
-                    <Image source={{ uri: shop.image }} style={styles.shopImage} />
-                    <LinearGradient
-                      colors={["rgba(0,0,0,0.15)", "rgba(0,0,0,0.05)"]}
-                      style={styles.shopImageOverlay}
-                    />
-                  </View>
-                  <View style={styles.shopInfo}>
-                    <Text style={styles.shopName}>{shop.name}</Text>
-                    <View style={styles.ratingContainer}>
-                      <Ionicons name="star" size={16} color="#FFD700" />
-                      <Text style={styles.ratingText}>{shop.rating}</Text>
-                      <Text style={styles.reviewsText}>({shop.reviews} reviews)</Text>
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Nearby Shops</Text>
+              <TouchableOpacity onPress={() => router.push({ pathname: '/nearby-shops' } as any)}>
+                <Text style={styles.seeAllText}>See All</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.shopsContainer}>
+              {loading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color={COLORS.primary} />
+                </View>
+              ) : nearbyShops.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>No shops found nearby</Text>
+                </View>
+              ) : (
+                nearbyShops.map((shop) => (
+                  <Animated.View
+                    key={shop._id}
+                    style={[
+                      styles.shopCard,
+                      { opacity: fadeAnim, transform: [{ scale: fadeAnim }] }
+                    ]}
+                  >
+                    <View style={styles.shopImageWrapper}>
+                      {shop.images && shop.images.length > 0 ? (
+                        <Image source={{ uri: shop.images[0] }} style={styles.shopImage} />
+                      ) : (
+                        <View style={[styles.shopImage, styles.placeholderImage]}>
+                          <Ionicons name="business" size={40} color={COLORS.textSecondary} />
+                        </View>
+                      )}
+                      <LinearGradient
+                        colors={["rgba(0,0,0,0.15)", "rgba(0,0,0,0.05)"]}
+                        style={styles.shopImageOverlay}
+                      />
                     </View>
-                    <Text style={styles.distanceText}>{shop.distance}</Text>
-                    <TouchableOpacity style={styles.bookNowBtn} onPress={() => router.push({ pathname: `/shop/${shop.id}` } as any)}>
-                      <Text style={styles.bookNowText}>Book Now</Text>
-                    </TouchableOpacity>
-                  </View>
-                </BlurView>
-              </Animated.View>
-            ))}
-          </ScrollView>
-        </View>
-      </ScrollView>
-    </LinearGradient>
+                    <View style={styles.shopInfo}>
+                      <Text style={styles.shopName} numberOfLines={1}>{shop.name}</Text>
+                      <View style={styles.ratingContainer}>
+                        <Ionicons name="star" size={16} color="#FFD700" />
+                        <Text style={styles.ratingText}>{shop.rating.toFixed(1)}</Text>
+                        <Text style={styles.reviewsText}>({shop.reviews.length} reviews)</Text>
+                      </View>
+                      <Text style={styles.shopAddress} numberOfLines={2}>
+                        {`${shop.address.street}, ${shop.address.city}`}
+                      </Text>
+                      <TouchableOpacity 
+                        style={styles.bookNowBtn}
+                        onPress={() => router.push({ pathname: `/shop/${shop._id}` } as any)}
+                      >
+                        <Text style={styles.bookNowText}>View Details</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </Animated.View>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </ScrollView>
+      </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  content: {
     flex: 1,
-    backgroundColor: '#F7F8FA',
+    marginTop: 8,
   },
   gradientBg: {
     flex: 1,
   },
   logoBrandContainer: {
     alignItems: 'center',
-    marginTop: 40,
-    marginBottom: 8,
+    marginTop: 20,
+    marginBottom: 20,
   },
   logo: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    marginBottom: 4,
-    backgroundColor: '#fff',
-    borderWidth: 2,
-    borderColor: '#fff',
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    marginBottom: 10,
   },
   brand: {
-    color: COLORS.textPrimary,
     fontSize: 24,
     fontWeight: 'bold',
-    letterSpacing: 2,
-    marginBottom: 8,
-    textShadowColor: '#fff',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    color: '#333',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  greetingContainer: {
     paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 20,
+    paddingVertical: 10,
   },
   greeting: {
     fontSize: 16,
@@ -334,103 +400,91 @@ const styles = StyleSheet.create({
     paddingLeft: 20,
   },
   shopCard: {
-    width: 180,
-    backgroundColor: '#fff',
-    borderRadius: 18,
-    marginRight: 16,
-    padding: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-    marginBottom: 8,
-    marginTop: 4,
+    width: 280,
+    backgroundColor: COLORS.white,
+    borderRadius: SIZES.radius,
+    marginRight: SIZES.medium,
+    overflow: 'hidden',
+    ...SHADOWS.medium
   },
   shopImageWrapper: {
     position: 'relative',
-    width: '100%',
-    height: 90,
-    borderRadius: 14,
-    overflow: 'hidden',
-    marginBottom: 8,
+    height: 160
   },
   shopImage: {
     width: '100%',
-    height: 90,
-    borderRadius: 14,
-    marginBottom: 8,
+    height: '100%',
+    resizeMode: 'cover'
+  },
+  placeholderImage: {
+    backgroundColor: COLORS.background,
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   shopInfo: {
-    padding: 16,
+    padding: SIZES.medium
   },
   shopName: {
-    fontSize: 18,
+    fontSize: FONTS.h4.fontSize,
     fontWeight: 'bold',
     color: COLORS.textPrimary,
-    marginBottom: 8,
+    marginBottom: SIZES.base
   },
   ratingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: SIZES.base
   },
   ratingText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: COLORS.textPrimary,
     marginLeft: 4,
+    fontSize: FONTS.body3.fontSize,
+    color: COLORS.textSecondary
   },
   reviewsText: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
     marginLeft: 4,
+    fontSize: FONTS.body3.fontSize,
+    color: COLORS.textSecondary
   },
-  distanceText: {
-    fontSize: 14,
+  shopAddress: {
+    fontSize: FONTS.body3.fontSize,
     color: COLORS.textSecondary,
-  },
-  bannerContainer: {
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  bannerBg: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 18,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  bannerText: {
-    fontSize: 16,
-    color: COLORS.primary,
-    fontWeight: 'bold',
-  },
-  shopImageOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 14,
+    marginBottom: SIZES.medium
   },
   bookNowBtn: {
-    marginTop: 8,
     backgroundColor: COLORS.primary,
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 18,
-    alignSelf: 'flex-start',
-    shadowColor: COLORS.primary,
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    elevation: 2,
+    padding: SIZES.base,
+    borderRadius: SIZES.radius,
+    alignItems: 'center'
   },
   bookNowText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 14,
+    color: COLORS.white,
+    fontSize: FONTS.body3.fontSize,
+    fontWeight: '500'
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SIZES.large
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SIZES.large
+  },
+  emptyText: {
+    fontSize: FONTS.body3.fontSize,
+    color: COLORS.textSecondary,
+    textAlign: 'center'
+  },
+  shopImageOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0
+  }
 });
 
-export default HomeScreen;
+export default TabLayout;

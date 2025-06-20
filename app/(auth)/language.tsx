@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Image,
     StyleSheet,
@@ -9,19 +9,39 @@ import {
     View,
 } from 'react-native';
 import { COLORS, FONTS, SHADOWS, SIZES } from '../constants/theme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTranslation } from 'react-i18next';
+import i18n from '../constants/i18n';
 
 const languages = [
   { id: 'en', name: 'English', flag: '🇺🇸' },
-  { id: 'hi', name: 'हिंदी', flag: '🇮🇳' },
-  { id: 'mr', name: 'मराठी', flag: '🇮🇳' },
-  { id: 'gu', name: 'ગુજરાતી', flag: '🇮🇳' },
+  { id: 'hi', name: 'हिंदी', flag: '🇮🇳' }
 ];
 
+const LANGUAGE_KEY = 'selected_language';
+
 const LanguageScreen = () => {
+  const { t } = useTranslation();
   const [selectedLanguage, setSelectedLanguage] = useState('en');
 
+  useEffect(() => {
+    (async () => {
+      const savedLang = await AsyncStorage.getItem(LANGUAGE_KEY);
+      if (savedLang && savedLang !== selectedLanguage) {
+        setSelectedLanguage(savedLang);
+        i18n.changeLanguage(savedLang);
+      }
+    })();
+  }, []);
+
+  const handleLanguageSelect = async (lang: string) => {
+    setSelectedLanguage(lang);
+    i18n.changeLanguage(lang);
+    await AsyncStorage.setItem(LANGUAGE_KEY, lang);
+  };
+
   const handleContinue = () => {
-    router.push('/(auth)/onboarding' as any);
+    router.replace('/(auth)/onboarding' as any);
   };
 
   return (
@@ -31,8 +51,8 @@ const LanguageScreen = () => {
           source={require('../../assets/images/applogo.jpeg')}
           style={styles.logo}
         />
-        <Text style={styles.title}>Choose Your Language</Text>
-        <Text style={styles.subtitle}>Select your preferred language to continue</Text>
+        <Text style={styles.title}>{t('select_language')}</Text>
+        <Text style={styles.subtitle}>{t('welcome')}</Text>
       </View>
 
       <View style={styles.languageContainer}>
@@ -43,7 +63,7 @@ const LanguageScreen = () => {
               styles.languageButton,
               selectedLanguage === language.id && styles.selectedLanguage,
             ]}
-            onPress={() => setSelectedLanguage(language.id)}
+            onPress={() => handleLanguageSelect(language.id)}
           >
             <Text style={styles.flag}>{language.flag}</Text>
             <Text
@@ -71,7 +91,7 @@ const LanguageScreen = () => {
           style={styles.button}
           onPress={handleContinue}
         >
-          <Text style={styles.buttonText}>Continue</Text>
+          <Text style={styles.buttonText}>{t('continue') || 'Continue'}</Text>
           <Ionicons
             name="arrow-forward"
             size={24}

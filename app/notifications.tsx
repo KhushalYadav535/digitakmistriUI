@@ -4,6 +4,10 @@ import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Card from '../components/Card';
 import { COLORS, FONTS, SHADOWS, SIZES } from '../constants/theme';
+import { socket } from './utils/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import { API_URL } from './constants/config';
 
 interface Notification {
   id: string;
@@ -14,42 +18,75 @@ interface Notification {
   read: boolean;
 }
 
-const notifications: Notification[] = [
-  {
-    id: '1',
-    type: 'new_booking',
-    title: 'New Booking Request',
-    message: 'Rahul Kumar has requested a plumbing service',
-    time: '2 hours ago',
-    read: false,
-  },
-  {
-    id: '2',
-    type: 'payment_received',
-    title: 'Payment Received',
-    message: 'You have received ₹2,500 from Priya Singh',
-    time: '3 hours ago',
-    read: true,
-  },
-  {
-    id: '3',
-    type: 'worker_registered',
-    title: 'New Worker Registered',
-    message: 'Amit Patel has joined as a carpenter',
-    time: '5 hours ago',
-    read: true,
-  },
-  {
-    id: '4',
-    type: 'job_completed',
-    title: 'Job Completed',
-    message: 'Rajesh Kumar has completed the electrical work',
-    time: '1 day ago',
-    read: true,
-  },
-];
-
 const NotificationsScreen = () => {
+  const [notifications, setNotifications] = React.useState<Notification[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState('');
+
+  React.useEffect(() => {
+    let isMounted = true;
+    fetchNotifications();
+
+    // Connect socket and register user for real-time notifications
+    const setupSocket = async () => {
+      const userStr = await AsyncStorage.getItem('user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        socket.connect();
+        socket.emit('register', { userId: user.id || user._id, role: user.role || 'customer' });
+        socket.on('notification', (notification) => {
+          setNotifications((prev) => {
+            // Avoid duplicate notifications by checking message+type+time
+            const exists = prev.some(
+              (n) => n.message === notification.message && n.type === notification.type && Math.abs(new Date(n.time).getTime() - Date.now()) < 1000
+            );
+            if (exists) return prev;
+            return [
+              {
+                id: Date.now().toString(),
+                type: notification.type,
+                title: notification.title || 'Notification',
+                message: notification.message,
+                time: new Date().toLocaleString(),
+                read: false,
+              },
+              ...prev,
+            ];
+          });
+        });
+      }
+    };
+    setupSocket();
+
+    // Cleanup on unmount
+    return () => {
+      isMounted = false;
+      socket.off('notification');
+      socket.disconnect();
+    };
+  }, []);
+
+  const fetchNotifications = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.get(`${API_URL}/notifications`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      setNotifications((prev) => {
+        // Merge API notifications with any real-time ones already in state
+        const apiNotifs = response.data.notifications || [];
+        const merged = [...apiNotifs, ...prev.filter(rt => !apiNotifs.some((an: Notification) => an.id === rt.id))];
+        return merged;
+      });
+    } catch (error: any) {
+      setError(error.response?.data?.message || 'Error fetching notifications');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getNotificationIcon = (type: Notification['type']) => {
     switch (type) {
       case 'new_booking':

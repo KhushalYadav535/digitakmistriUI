@@ -1,344 +1,529 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Button, FlatList, Alert, Platform } from 'react-native';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { COLORS } from '../constants/theme';
-import axios from 'axios';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Alert, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios, { AxiosError } from 'axios';
+import { API_URL } from '../constants/config';
+import { COLORS } from '../constants/theme';
+import BookingForm from '../components/BookingForm';
+import { useRouter, useFocusEffect } from 'expo-router';
 
-interface Address {
-  street: string;
-  city: string;
-  state: string;
-  pincode: string;
-}
-
-interface Service {
-  _id: string;
-  name: string;
-  price: number;
-  duration: string;
-}
+type BookingStatus = 'Pending' | 'Confirmed' | 'Worker Assigned' | 'Accepted' | 'Rejected' | 'In Progress' | 'Completed' | 'Cancelled';
 
 interface Booking {
   _id: string;
-  service: Service;
-  subService: string;
+  serviceType: string;
+  serviceTitle: string;
   bookingDate: string;
   bookingTime: string;
-  address: Address;
-  status: 'pending' | 'accepted' | 'rejected' | 'completed' | 'cancelled';
-  totalAmount: number;
+  address: {
+    street: string;
+    city: string;
+    state: string;
+    pincode: string;
+  };
+  status: BookingStatus;
+  worker?: {
+    name: string;
+    phone: string;
+  };
 }
 
-const services = [
-  {
-    id: 'plumber',
-    name: 'Plumber',
-    icon: <MaterialIcons name="plumbing" size={20} color={COLORS.primary} />,
-    subServices: [
-      'Basin Set Fitting/Repair',
-      'Flush Tank Service',
-      'Wiring Related Repair',
-      'Toti Installation',
-    ],
-  },
-  {
-    id: 'electrician',
-    name: 'Electrician',
-    icon: <MaterialIcons name="electrical-services" size={20} color={COLORS.primary} />,
-    subServices: [
-      'Fan Installation',
-      'Fan Servicing',
-      'Fan Capacitor Change',
-      'Holder/Button/Socket Change',
-    ],
-  },
-  {
-    id: 'electronics',
-    name: 'Electronics',
-    icon: <MaterialIcons name="devices-other" size={20} color={COLORS.primary} />,
-    subServices: [
-      'AC Installation',
-      'AC Service',
-      'AC Gas Charging',
-      'Washing Machine',
-      'Gas Geyser',
-      'LED TV Repairing',
-      'DTH Set',
-      'Inverter Set Kaam',
-    ],
-  },
-  {
-    id: 'handpump',
-    name: 'Handpump',
-    icon: <MaterialIcons name="build" size={20} color={COLORS.primary} />,
-    subServices: [
-      'Handpump Installation',
-      'Handpump Repair',
-    ],
-  },
-];
-
-const mockBookings = [
-  {
-    id: '1',
-    service: 'Plumber',
-    subService: 'Basin Set Fitting/Repair',
-    date: '2024-06-10',
-    time: '10:00 AM',
-    address: '123 Main St',
-    status: 'Confirmed',
-  },
-  {
-    id: '2',
-    service: 'Electronics',
-    subService: 'AC Installation',
-    date: '2024-06-12',
-    time: '2:00 PM',
-    address: '456 Park Ave',
-    status: 'Pending',
-  },
-];
-
-const statusColors = {
-  pending: '#FFA726',
-  accepted: '#43A047',
-  rejected: '#E53935',
-  completed: '#43A047',
-  cancelled: '#E53935'
+const getStatusColor = (status: BookingStatus): string => {
+  const statusColors: Record<BookingStatus, string> = {
+    'Pending': COLORS.warning,
+    'Confirmed': COLORS.info,
+    'Worker Assigned': COLORS.info,
+    'Accepted': COLORS.success,
+    'Rejected': COLORS.error,
+    'In Progress': COLORS.primary,
+    'Completed': COLORS.success,
+    'Cancelled': COLORS.error
+  };
+  return statusColors[status];
 };
 
-// Use your computer's IP address instead of localhost when running on a physical device
-const API_URL = 'https://digital-mistri.onrender.com/api';
+const getStatusText = (status: BookingStatus): string => {
+  const statusTexts: Record<BookingStatus, string> = {
+    'Pending': 'Waiting for confirmation',
+    'Confirmed': 'Booking confirmed',
+    'Worker Assigned': 'Worker assigned',
+    'Accepted': 'Worker accepted',
+    'Rejected': 'Booking rejected',
+    'In Progress': 'Service in progress',
+    'Completed': 'Service completed',
+    'Cancelled': 'Booking cancelled'
+  };
+  return statusTexts[status];
+};
 
 const BookingsScreen = () => {
-  const [tab, setTab] = useState('book');
-  const [selectedService, setSelectedService] = useState(services[0].id);
-  const [selectedSubService, setSelectedSubService] = useState(services[0].subServices[0]);
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('');
-  const [address, setAddress] = useState('');
+  const [activeTab, setActiveTab] = useState('bookings');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const router = useRouter();
 
-  // Fetch user's bookings
-  const fetchBookings = async () => {
+  const loadBookings = async () => {
     try {
+      setIsLoading(true);
+      setError('');
       const token = await AsyncStorage.getItem('token');
-      if (!token) {
-        Alert.alert('Error', 'Please login to view bookings');
-        return;
-      }
+      if (!token) throw new Error('No token found');
+      
+      const response = await axios.get(`${API_URL}/bookings/customer`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      setBookings(response.data);
+    } catch (error) {
+      console.error('Error loading bookings:', error);
+      const axiosError = error as AxiosError<{ message: string }>;
+      setError(axiosError.response?.data?.message || 'Failed to load bookings');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-      const response = await axios.get(`${API_URL}/bookings`, {
+  const loadNotifications = async () => {
+    try {
+      setNotifLoading(true);
+      const token = await AsyncStorage.getItem('token');
+      if (!token) throw new Error('No token found');
+      const response = await axios.get(`${API_URL}/notifications/customer`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setBookings(response.data.bookings);
+      setNotifications(response.data);
     } catch (error) {
-      console.error('Error fetching bookings:', error);
-      Alert.alert('Error', 'Failed to fetch bookings');
+      setNotifications([]);
+    } finally {
+      setNotifLoading(false);
     }
   };
 
   useEffect(() => {
-    if (tab === 'my') {
-      fetchBookings();
-    }
-  }, [tab]);
+    loadBookings();
+  }, []);
 
-  const handleBook = async () => {
-    if (!date || !time || !address) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
+  useFocusEffect(
+    React.useCallback(() => {
+      if (activeTab === 'bookings') {
+        loadBookings();
+      }
+    }, [activeTab])
+  );
 
+  const handleBooking = async (bookingData: {
+    serviceId: string;
+    serviceTitle: string;
+    date: string;
+    time: string;
+    address: {
+      street: string;
+      city: string;
+      state: string;
+      pincode: string;
+    };
+    phone: string;
+  }) => {
     try {
-      setLoading(true);
+      setIsLoading(true);
       const token = await AsyncStorage.getItem('token');
       if (!token) {
         Alert.alert('Error', 'Please login to book a service');
+        router.push('/(auth)/login' as any);
         return;
       }
 
-      const serviceObj = services.find(s => s.id === selectedService);
-      const bookingData = {
-        service: serviceObj?.name,
-        subService: selectedSubService,
-        bookingDate: date,
-        bookingTime: time,
-        address: {
-          street: address,
-          city: 'Your City',
-          state: 'Your State',
-          pincode: 'Your Pincode'
+      const response = await axios.post(
+        `${API_URL}/bookings`,
+        {
+          serviceType: bookingData.serviceId,
+          serviceTitle: bookingData.serviceTitle,
+          bookingDate: bookingData.date,
+          bookingTime: bookingData.time,
+          address: bookingData.address,
+          phone: bookingData.phone,
         },
-        totalAmount: 750,
-      };
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-      const response = await axios.post(`${API_URL}/bookings`, bookingData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      Alert.alert('Success', 'Booking created successfully!');
-      setDate('');
-      setTime('');
-      setAddress('');
-      
-      if (tab === 'my') {
-        fetchBookings();
+      if (response.status === 201) {
+        Alert.alert('Success', 'Booking created successfully');
+        loadBookings(); // Refresh the bookings list
       }
     } catch (error) {
-      console.error('Error creating booking:', error);
-      Alert.alert('Error', 'Failed to create booking. Please try again.');
+      console.error('Booking error:', error);
+      const axiosError = error as AxiosError<{ message: string }>;
+      if (axiosError.response?.status === 401) {
+        Alert.alert('Error', 'Please login to book a service');
+        router.push('/(auth)/login' as any);
+      } else {
+        Alert.alert(
+          'Error',
+          axiosError.response?.data?.message || 'Failed to create booking'
+        );
+      }
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
+  };
+
+  const handleCancelBooking = async (bookingId: string) => {
+    Alert.alert('Cancel Booking', 'Are you sure you want to cancel this booking?', [
+      { text: 'No', style: 'cancel' },
+      { text: 'Yes', style: 'destructive', onPress: async () => {
+        try {
+          setIsLoading(true);
+          const token = await AsyncStorage.getItem('token');
+          await axios.put(`${API_URL}/bookings/${bookingId}/cancel`, {}, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          Alert.alert('Success', 'Booking cancelled successfully');
+          loadBookings();
+        } catch (error) {
+          Alert.alert('Error', 'Failed to cancel booking');
+        } finally {
+          setIsLoading(false);
+        }
+      }}
+    ]);
+  };
+
+  const renderBookingCard = ({ item }: { item: Booking }) => {
+    const formatAddress = (address: Booking['address']) => {
+      if (!address) return 'Address not available';
+      return `${address.street}, ${address.city}, ${address.state} - ${address.pincode}`;
+    };
+
+    const canCancel = !['Completed', 'Cancelled', 'Rejected'].includes(item.status);
+
+    return (
+      <View style={styles.bookingCard}>
+        <View style={styles.bookingInfo}>
+          <Text style={styles.bookingTitle}>{item.serviceTitle}</Text>
+          <Text style={styles.bookingDate}>
+            {new Date(item.bookingDate).toLocaleDateString()} at {item.bookingTime}
+          </Text>
+          <Text style={[styles.bookingStatus, { color: getStatusColor(item.status) }]}>
+            {getStatusText(item.status)}
+          </Text>
+          <Text style={styles.bookingAddress}>{formatAddress(item.address)}</Text>
+          {item.worker && (
+            <View style={styles.workerInfo}>
+              <Text style={styles.workerLabel}>Assigned Worker:</Text>
+              <Text style={styles.workerName}>{item.worker.name}</Text>
+              <Text style={styles.workerPhone}>{item.worker.phone}</Text>
+            </View>
+          )}
+          {canCancel && (
+            <TouchableOpacity style={styles.cancelButton} onPress={() => handleCancelBooking(item._id)}>
+              <Text style={styles.cancelButtonText}>Cancel Booking</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    );
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.tabBar}>
-        <TouchableOpacity style={[styles.tab, tab === 'book' && styles.activeTab]} onPress={() => setTab('book')}>
-          <Text style={[styles.tabText, tab === 'book' && styles.activeTabText]}>Book a Service</Text>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'bookings' && styles.activeTab]}
+          onPress={() => setActiveTab('bookings')}
+        >
+          <Ionicons name="calendar" size={24} color={activeTab === 'bookings' ? COLORS.primary : '#666'} />
+          <Text style={[styles.tabText, activeTab === 'bookings' && styles.tabTextActive]}>Bookings</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.tab, tab === 'my' && styles.activeTab]} onPress={() => setTab('my')}>
-          <Text style={[styles.tabText, tab === 'my' && styles.activeTabText]}>My Bookings</Text>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'notifications' && styles.activeTab]}
+          onPress={() => setActiveTab('notifications')}
+        >
+          <Ionicons name="notifications" size={24} color={activeTab === 'notifications' ? COLORS.primary : '#666'} />
+          <Text style={[styles.tabText, activeTab === 'notifications' && styles.tabTextActive]}>Notifications</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'profile' && styles.activeTab]}
+          onPress={() => setActiveTab('profile')}
+        >
+          <Ionicons name="person" size={24} color={activeTab === 'profile' ? COLORS.primary : '#666'} />
+          <Text style={[styles.tabText, activeTab === 'profile' && styles.tabTextActive]}>Profile</Text>
         </TouchableOpacity>
       </View>
-      {tab === 'book' ? (
-        <ScrollView contentContainerStyle={{ padding: 20 }}>
-          <View style={styles.card}>
+
+      {activeTab === 'bookings' ? (
+        <View style={styles.content}>
+          <View style={styles.bookingForm}>
             <Text style={styles.sectionTitle}>Book a Service</Text>
-            <Text style={styles.label}>Select Service</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
-              {services.map(service => (
-                <TouchableOpacity
-                  key={service.id}
-                  style={[styles.chip, selectedService === service.id && styles.chipSelected]}
-                  onPress={() => {
-                    setSelectedService(service.id);
-                    setSelectedSubService(service.subServices[0]);
-                  }}
-                >
-                  {service.icon}
-                  <Text style={[styles.chipText, selectedService === service.id && styles.chipTextSelected]}>{service.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <Text style={styles.label}>Select Sub-Service</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
-              {services.find(s => s.id === selectedService)?.subServices.map(sub => (
-                <TouchableOpacity
-                  key={sub}
-                  style={[styles.chip, selectedSubService === sub && styles.chipSelected]}
-                  onPress={() => setSelectedSubService(sub)}
-                >
-                  <Text style={[styles.chipText, selectedSubService === sub && styles.chipTextSelected]}>{sub}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <Text style={styles.label}>Date</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="YYYY-MM-DD"
-              value={date}
-              onChangeText={setDate}
-              placeholderTextColor="#aaa"
+            <BookingForm
+              onSubmit={handleBooking}
+              isLoading={isLoading}
             />
-            <Text style={styles.label}>Time</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. 10:00 AM"
-              value={time}
-              onChangeText={setTime}
-              placeholderTextColor="#aaa"
-            />
-            <Text style={styles.label}>Address</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your address"
-              value={address}
-              onChangeText={setAddress}
-              placeholderTextColor="#aaa"
-            />
-            <TouchableOpacity 
-              style={[styles.button, loading && styles.buttonDisabled]} 
-              onPress={handleBook}
-              disabled={loading}
-            >
-              {loading ? (
-                <Text style={styles.buttonText}>Booking...</Text>
-              ) : (
-                <>
-                  <Ionicons name="checkmark-circle" size={20} color="#fff" style={{ marginRight: 6 }} />
-                  <Text style={styles.buttonText}>Book Now</Text>
-                </>
-              )}
-            </TouchableOpacity>
           </View>
-        </ScrollView>
-      ) : (
-        bookings.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="calendar-outline" size={60} color={COLORS.primary} style={{ marginBottom: 16 }} />
-            <Text style={styles.emptyText}>No bookings yet. Book your first service!</Text>
-          </View>
-        ) : (
-          <FlatList
-            data={bookings}
-            keyExtractor={item => item._id}
-            contentContainerStyle={{ padding: 16 }}
-            renderItem={({ item }) => (
-              <View style={styles.bookingCard}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                  <Ionicons name="construct" size={22} color={COLORS.primary} style={{ marginRight: 8 }} />
-                  <Text style={styles.bookingService}>{item.service.name} - {item.subService}</Text>
-                </View>
-                <Text style={styles.bookingInfo}>
-                  <Ionicons name="calendar" size={16} color={COLORS.textSecondary} />  {new Date(item.bookingDate).toLocaleDateString()}   
-                  <Ionicons name="time" size={16} color={COLORS.textSecondary} />  {item.bookingTime}
-                </Text>
-                <Text style={styles.bookingInfo}>
-                  <Ionicons name="location" size={16} color={COLORS.textSecondary} />  {item.address.street}
-                </Text>
-                <View style={[styles.statusBadge, { backgroundColor: statusColors[item.status] || COLORS.primary }]}>
-                  <Text style={styles.statusBadgeText}>{item.status}</Text>
-                </View>
+
+          <View style={styles.bookingsList}>
+            <Text style={styles.sectionTitle}>Your Bookings</Text>
+            
+            {isLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={COLORS.primary} />
+                <Text style={styles.loadingText}>Loading bookings...</Text>
+              </View>
+            ) : error ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+                <TouchableOpacity style={styles.retryButton} onPress={loadBookings}>
+                  <Text style={styles.retryButtonText}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            ) : bookings.length > 0 ? (
+              <FlatList
+                data={bookings}
+                keyExtractor={item => item._id}
+                renderItem={renderBookingCard}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.flatListContent}
+              />
+            ) : (
+              <View style={styles.emptyState}>
+                <Ionicons name="book-outline" size={48} color="#666" />
+                <Text style={styles.emptyStateText}>No bookings yet</Text>
               </View>
             )}
-          />
-        )
+          </View>
+        </View>
+      ) : activeTab === 'notifications' ? (
+        <View style={styles.notificationsContainer}>
+          {notifLoading ? (
+            <ActivityIndicator size="large" color={COLORS.primary} />
+          ) : notifications.length > 0 ? (
+            <FlatList
+              data={notifications}
+              keyExtractor={item => item._id}
+              renderItem={({ item }) => (
+                <View style={styles.notificationCard}>
+                  <Text style={styles.notificationMessage}>{item.message}</Text>
+                  <Text style={styles.notificationDate}>{new Date(item.createdAt).toLocaleString()}</Text>
+                </View>
+              )}
+              contentContainerStyle={styles.flatListContent}
+            />
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="notifications-off" size={48} color="#666" />
+              <Text style={styles.emptyStateText}>No notifications yet</Text>
+            </View>
+          )}
+        </View>
+      ) : (
+        <View style={styles.profileContainer}>
+          <Ionicons name="person-outline" size={48} color="#666" />
+          <Text style={styles.comingSoon}>Profile coming soon...</Text>
+        </View>
       )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F7F8FA' },
-  tabBar: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#eee', backgroundColor: '#fff' },
-  tab: { flex: 1, padding: 16, alignItems: 'center' },
-  activeTab: { borderBottomWidth: 3, borderBottomColor: COLORS.primary },
-  tabText: { fontSize: 16, color: COLORS.textSecondary },
-  activeTabText: { color: COLORS.primary, fontWeight: 'bold' },
-  card: { backgroundColor: '#fff', borderRadius: 16, padding: 20, shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 8, elevation: 2 },
-  sectionTitle: { fontSize: 20, fontWeight: 'bold', color: COLORS.primary, marginBottom: 12, textAlign: 'center' },
-  label: { fontSize: 15, fontWeight: 'bold', marginTop: 16, marginBottom: 6, color: COLORS.textPrimary },
-  chip: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F1F1', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7, marginRight: 10, marginBottom: 8 },
-  chipSelected: { backgroundColor: COLORS.primary },
-  chipText: { color: COLORS.textPrimary, fontSize: 15, marginLeft: 5 },
-  chipTextSelected: { color: '#fff', fontWeight: 'bold' },
-  input: { borderWidth: 1, borderColor: '#eee', borderRadius: 12, padding: 12, marginBottom: 16, backgroundColor: '#F7F8FA', fontSize: 15 },
-  button: { flexDirection: 'row', backgroundColor: COLORS.primary, borderRadius: 12, paddingVertical: 14, justifyContent: 'center', alignItems: 'center', marginTop: 10, shadowColor: COLORS.primary, shadowOpacity: 0.15, shadowRadius: 8, elevation: 2 },
-  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  bookingCard: { backgroundColor: '#fff', borderRadius: 14, padding: 18, marginBottom: 18, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 6, elevation: 1 },
-  bookingService: { fontSize: 16, fontWeight: 'bold', color: COLORS.textPrimary },
-  bookingInfo: { fontSize: 14, color: COLORS.textSecondary, marginTop: 2, marginBottom: 2 },
-  statusBadge: { alignSelf: 'flex-end', marginTop: 8, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 4 },
-  statusBadgeText: { color: '#fff', fontWeight: 'bold', fontSize: 13 },
-  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 60 },
-  emptyText: { color: COLORS.textSecondary, fontSize: 16, marginTop: 8, textAlign: 'center' },
-  buttonDisabled: {
-    opacity: 0.7,
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  tabBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  tab: {
+    alignItems: 'center',
+    paddingVertical: 5,
+  },
+  activeTab: {
+    borderBottomWidth: 2,
+    borderBottomColor: COLORS.primary,
+  },
+  tabText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+  },
+  tabTextActive: {
+    color: COLORS.primary,
+  },
+  content: {
+    flex: 1,
+  },
+  bookingForm: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  bookingsList: {
+    flex: 1,
+    padding: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    color: COLORS.textPrimary,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 10,
+    color: COLORS.textSecondary,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    color: COLORS.error,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  retryButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 5,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyStateText: {
+    marginTop: 10,
+    color: COLORS.textSecondary,
+    fontSize: 16,
+  },
+  profileContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  comingSoon: {
+    marginTop: 10,
+    color: COLORS.textSecondary,
+    fontSize: 16,
+  },
+  flatListContent: {
+    paddingBottom: 20,
+  },
+  bookingCard: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  bookingInfo: {
+    flex: 1,
+  },
+  bookingTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  bookingDate: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  bookingTime: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  bookingStatus: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  bookingAddress: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    marginTop: 4,
+  },
+  workerInfo: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  workerLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  workerName: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  workerPhone: {
+    fontSize: 14,
+    color: '#666',
+  },
+  cancelButton: {
+    marginTop: 10,
+    backgroundColor: COLORS.error,
+    padding: 8,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  notificationsContainer: {
+    flex: 1,
+    padding: 16,
+  },
+  notificationCard: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 14,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  notificationMessage: {
+    fontSize: 15,
+    color: COLORS.textPrimary,
+    marginBottom: 4,
+  },
+  notificationDate: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
   },
 });
 

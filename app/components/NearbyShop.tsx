@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     Linking,
     StyleSheet,
@@ -30,6 +31,7 @@ const NearbyShop: React.FC<NearbyShopProps> = ({
     onEdit,
     onDelete,
 }) => {
+    const { t } = useTranslation();
     const handleCall = () => {
         Linking.openURL(`tel:${phone}`);
     };
@@ -37,9 +39,9 @@ const NearbyShop: React.FC<NearbyShopProps> = ({
     return (
         <View style={styles.container}>
             <View style={styles.content}>
-                <Text style={styles.name}>{name}</Text>
-                <Text style={styles.address}>{address}</Text>
-                <Text style={styles.description}>{description}</Text>
+                <Text style={styles.name}>{t('name')}: {name}</Text>
+                <Text style={styles.address}>{t('address')}: {address}</Text>
+                <Text style={styles.description}>{t('description')}: {description}</Text>
             </View>
 
             <View style={styles.actions}>
@@ -48,7 +50,7 @@ const NearbyShop: React.FC<NearbyShopProps> = ({
                     onPress={handleCall}
                 >
                     <Ionicons name="call" size={20} color={COLORS.white} />
-                    <Text style={styles.callButtonText}>Call</Text>
+                    <Text style={styles.callButtonText}>{t('call')}</Text>
                 </TouchableOpacity>
 
                 {isAdmin && (

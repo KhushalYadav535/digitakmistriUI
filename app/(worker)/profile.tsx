@@ -15,8 +15,7 @@ import Card from '../../components/Card';
 import { COLORS, FONTS, SHADOWS, SIZES } from '../../constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-
-const API = 'https://digital-mistri.onrender.com';
+import { API_URL } from '../constants/config';
 
 interface WorkerProfile {
   id: string;
@@ -29,7 +28,7 @@ interface WorkerProfile {
   jobs: number;
   earnings: number;
   experience: number;
-  status: 'active' | 'inactive';
+  isVerified: boolean;
 }
 
 const WorkerProfileScreen = () => {
@@ -42,7 +41,7 @@ const WorkerProfileScreen = () => {
         console.log('Calling /api/worker/profile...'); // Log before API call
         const token = await AsyncStorage.getItem('token');
         console.log('TOKEN USED FOR PROFILE FETCH:', token);
-        const url = `${API}/api/worker/profile`;
+        const url = `${API_URL}/worker/profile`;
         console.log('FETCHING PROFILE FROM:', url);
         const res = await axios.get(url, {
           headers: { 'Authorization': `Bearer ${token}` }
@@ -51,11 +50,11 @@ const WorkerProfileScreen = () => {
         console.log('WORKER PROFILE API RESPONSE:', res.data); // Debug log
         setWorker(res.data);
         await AsyncStorage.setItem('worker', JSON.stringify(res.data));
-      } catch (e) {
+      } catch (e: any) {
         console.log('PROFILE FETCH ERROR:', e);
         setWorker(null);
         setLoading(false);
-        Alert.alert('Profile fetch error: ' + (e && e.message ? e.message : e));
+        Alert.alert('Profile fetch error: ' + (e?.message || 'Unknown error'));
       } finally {
         setLoading(false);
       }
@@ -70,7 +69,7 @@ const WorkerProfileScreen = () => {
   const handleLogout = React.useCallback(async () => {
     await AsyncStorage.clear();
     console.log('AsyncStorage cleared on logout');
-    router.replace('/(auth)/worker-login' as any);
+    router.replace('/(auth)/role-selection' as any);
   }, []);
 
   const renderContent = React.useCallback(() => {
@@ -105,16 +104,35 @@ const WorkerProfileScreen = () => {
               <View
                 style={[
                   styles.statusDot,
-                  { backgroundColor: worker.status === 'active' ? COLORS.success : COLORS.error },
+                  { backgroundColor: worker.isVerified ? COLORS.success : COLORS.error },
                 ]}
               />
               <Text style={styles.statusText}>
-                {worker.status === 'active' ? 'Active' : 'Inactive'}
+                {worker.isVerified ? 'Active' : 'Inactive'}
               </Text>
             </View>
           </View>
           <Text style={styles.name}>{worker.name}</Text>
           <Text style={styles.service}>{worker.service}</Text>
+        </View>
+
+        <View style={styles.navigationButtons}>
+          <TouchableOpacity 
+            style={styles.navButton}
+            onPress={() => router.push({
+              pathname: "/(worker)/profile-dashboard"
+            } as any)}
+          >
+            <Ionicons name="stats-chart-outline" size={24} color={COLORS.primary} />
+            <Text style={styles.navButtonText}>Profile Dashboard</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.navButton}
+            onPress={handleEditProfile}
+          >
+            <Ionicons name="create-outline" size={24} color={COLORS.primary} />
+            <Text style={styles.navButtonText}>Edit Profile</Text>
+          </TouchableOpacity>
         </View>
 
         <Card variant="elevated" style={styles.statsCard}>
@@ -322,6 +340,25 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     width: '100%',
+  },
+  navigationButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: SIZES.medium,
+    marginBottom: SIZES.medium,
+  },
+  navButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary + '10',
+    padding: SIZES.medium,
+    borderRadius: SIZES.base,
+    gap: SIZES.base,
+  },
+  navButtonText: {
+    color: COLORS.primary,
+    fontSize: FONTS.body3.fontSize,
+    fontWeight: '500',
   },
 });
 

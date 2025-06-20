@@ -10,14 +10,12 @@ import { API_URL } from './constants/config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const services = [
-  'Plumbing',
-  'Electrical',
-  'Carpentry',
-  'Painting',
-  'Cleaning',
-  'Gardening',
-  'Masonry',
-  'Welding',
+  'plumber',
+  'electrician',
+  'electronic',
+  'painter',
+  'carpenter',
+  'handpump mistri',
 ];
 
 const AddWorkerScreen = () => {

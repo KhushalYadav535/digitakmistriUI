@@ -47,6 +47,27 @@ const WorkerLayout = () => {
           ),
         }}
       />
+      <Tabs.Screen
+        name="profile-dashboard"
+        options={{
+          href: null,
+          title: 'Profile Dashboard',
+        }}
+      />
+      <Tabs.Screen
+        name="edit-profile"
+        options={{
+          href: null,
+          title: 'Edit Profile',
+        }}
+      />
+      <Tabs.Screen
+        name="job-details/[id]"
+        options={{
+          href: null,
+          title: 'Job Details',
+        }}
+      />
     </Tabs>
   );
 };

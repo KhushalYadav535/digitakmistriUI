@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { COLORS, FONTS, SIZES } from '../constants/theme';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'text';
+export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'text' | 'success' | 'danger';
 
 export interface ButtonProps {
   title: string;
@@ -47,6 +47,14 @@ const Button = ({
           backgroundColor: 'transparent',
           paddingVertical: 0,
         };
+      case 'success':
+        return {
+          backgroundColor: COLORS.success,
+        };
+      case 'danger':
+        return {
+          backgroundColor: COLORS.error,
+        };
       default:
         return {
           backgroundColor: COLORS.primary,
@@ -57,7 +65,6 @@ const Button = ({
   const getTextColor = (): string => {
     switch (variant) {
       case 'outline':
-        return COLORS.primary;
       case 'text':
         return COLORS.primary;
       default:

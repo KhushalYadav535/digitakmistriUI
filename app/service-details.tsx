@@ -1,6 +1,6 @@
 import { Ionicons, MaterialCommunityIcons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Image,
     ScrollView,
@@ -8,8 +8,12 @@ import {
     Text,
     TouchableOpacity,
     View,
+    Alert,
 } from 'react-native';
 import { COLORS, FONTS, SHADOWS, SIZES } from './constants/theme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import { API_URL } from './constants/config';
 
 const serviceMeta = {
     plumber: {
@@ -153,6 +157,57 @@ const serviceMeta = {
 const ServiceDetailsScreen = () => {
     const { id } = useLocalSearchParams();
     const service = serviceMeta[id as keyof typeof serviceMeta];
+    const [bookedServices, setBookedServices] = useState<string[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        fetchBookedServices();
+    }, []);
+
+    const fetchBookedServices = async () => {
+        try {
+            const token = await AsyncStorage.getItem('token');
+            if (!token) {
+                router.push('/(auth)/login' as any);
+                return;
+            }
+
+            const response = await axios.get(`${API_URL}/bookings/customer`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            const bookedServiceTitles = response.data.map((booking: any) => booking.serviceTitle);
+            setBookedServices(bookedServiceTitles);
+        } catch (error) {
+            console.error('Error fetching booked services:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleServicePress = (serviceTitle: string) => {
+        if (bookedServices.includes(serviceTitle)) {
+            Alert.alert(
+                'Already Booked',
+                'You have already booked this service. Please check your bookings.',
+                [
+                    {
+                        text: 'View Bookings',
+                        onPress: () => router.push('/(tabs)/bookings' as any)
+                    },
+                    {
+                        text: 'Cancel',
+                        style: 'cancel'
+                    }
+                ]
+            );
+        } else {
+            router.push({
+                pathname: '/bookings' as any,
+                params: { serviceTitle }
+            });
+        }
+    };
 
     if (!service) {
         return (
@@ -187,7 +242,14 @@ const ServiceDetailsScreen = () => {
                     <Text style={{ color: COLORS.textSecondary, marginTop: 10 }}>No services listed.</Text>
                 )}
                 {service.services.map((item, idx) => (
-                    <TouchableOpacity key={idx} style={styles.subServiceCard} onPress={() => router.push('/bookings' as any)}>
+                    <TouchableOpacity 
+                        key={idx} 
+                        style={[
+                            styles.subServiceCard,
+                            bookedServices.includes(item.title) && styles.bookedServiceCard
+                        ]} 
+                        onPress={() => handleServicePress(item.title)}
+                    >
                         <View style={{ flex: 1 }}>
                             <Text style={styles.subServiceTitle}>{item.title}</Text>
                             <Text style={styles.subServiceSubtitle}>{item.subtitle}</Text>
@@ -195,6 +257,9 @@ const ServiceDetailsScreen = () => {
                             {item.extra ? (
                                 <Text style={styles.subServiceExtra}>{item.extra}</Text>
                             ) : null}
+                            {bookedServices.includes(item.title) && (
+                                <Text style={styles.bookedText}>Already Booked</Text>
+                            )}
                         </View>
                         <Ionicons name="chevron-forward" size={24} color={COLORS.textSecondary} />
                     </TouchableOpacity>
@@ -299,6 +364,16 @@ const styles = StyleSheet.create({
         color: COLORS.error,
         textAlign: 'center',
         marginTop: SIZES.xxlarge,
+    },
+    bookedServiceCard: {
+        opacity: 0.7,
+        backgroundColor: COLORS.background,
+    },
+    bookedText: {
+        color: COLORS.primary,
+        fontSize: FONTS.body3.fontSize,
+        fontWeight: '600',
+        marginTop: 5,
     },
 });
 

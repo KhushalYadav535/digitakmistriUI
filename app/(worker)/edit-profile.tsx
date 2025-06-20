@@ -6,6 +6,7 @@ import Button from '../../components/Button';
 import Input from '../../components/Input';
 import { COLORS, FONTS, SHADOWS, SIZES } from '../constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_URL } from '../constants/config';
 
 const WorkerEditProfileScreen = () => {
   const [formData, setFormData] = useState({
@@ -21,7 +22,7 @@ const WorkerEditProfileScreen = () => {
     const fetchProfile = async () => {
       try {
         const token = await AsyncStorage.getItem('token');
-        const res = await fetch(`${'https://digital-mistri.onrender.com'}/api/worker/profile`, {
+        const res = await fetch(`${API_URL}/api/worker/profile`, {
           method: 'GET',
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -43,7 +44,7 @@ const WorkerEditProfileScreen = () => {
   const handleSave = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
-      const res = await fetch(`${'https://digital-mistri.onrender.com'}/api/worker/profile`, {
+      const res = await fetch(`${API_URL}/api/worker/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

@@ -14,6 +14,7 @@ import { COLORS, FONTS, SHADOWS, SIZES } from './constants/theme';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from './constants/config';
+import { socket } from './utils/api';
 
 interface Notification {
   _id: string;
@@ -34,7 +35,47 @@ const WorkerNotificationsScreen = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    let isMounted = true;
     fetchNotifications();
+
+    // Connect socket and register user for real-time notifications
+    const setupSocket = async () => {
+      const workerStr = await AsyncStorage.getItem('worker');
+      if (workerStr) {
+        const worker = JSON.parse(workerStr);
+        socket.connect();
+        socket.emit('register', { userId: worker.id || worker._id, role: 'worker' });
+        socket.on('notification', (notification) => {
+          setNotifications((prev) => {
+            // Avoid duplicate notifications by checking message+type+createdAt
+            const exists = prev.some(
+              (n) => n.message === notification.message && n.type === notification.type && Math.abs(new Date(n.createdAt).getTime() - Date.now()) < 1000
+            );
+            if (exists) return prev;
+            return [
+              {
+                _id: Date.now().toString(),
+                title: notification.title || 'Notification',
+                message: notification.message,
+                type: notification.type,
+                isRead: false,
+                createdAt: new Date().toISOString(),
+                data: notification.data || {},
+              },
+              ...prev,
+            ];
+          });
+        });
+      }
+    };
+    setupSocket();
+
+    // Cleanup on unmount
+    return () => {
+      isMounted = false;
+      socket.off('notification');
+      socket.disconnect();
+    };
   }, []);
 
   const fetchNotifications = async () => {
@@ -45,7 +86,12 @@ const WorkerNotificationsScreen = () => {
           Authorization: `Bearer ${token}`,
         },
       });
-      setNotifications(response.data.notifications);
+      setNotifications((prev) => {
+        // Merge API notifications with any real-time ones already in state
+        const apiNotifs = response.data.notifications || [];
+        const merged = [...apiNotifs, ...prev.filter(rt => !apiNotifs.some((an: Notification) => an._id === rt._id))];
+        return merged;
+      });
     } catch (error: any) {
       setError(error.response?.data?.message || 'Error fetching notifications');
       Alert.alert('Error', 'Failed to load notifications');

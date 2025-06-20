@@ -23,60 +23,77 @@ const RegisterScreen = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const validateForm = () => {
+    const errors: Record<string, string> = {};
+    
     if (!name.trim()) {
-      Alert.alert('Error', 'Please enter your full name');
-      return false;
+      errors.name = 'Please enter your full name';
+    } else if (name.trim().length < 2) {
+      errors.name = 'Name must be at least 2 characters long';
     }
+
     if (!email.trim()) {
-      Alert.alert('Error', 'Please enter your email');
-      return false;
+      errors.email = 'Please enter your email';
+    } else {
+      const emailRegex = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
+      if (!emailRegex.test(email)) {
+        errors.email = 'Please enter a valid email address';
+      }
     }
-    const emailRegex = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
-    if (!emailRegex.test(email)) {
-      Alert.alert('Error', 'Please enter a valid email address');
-      return false;
-    }
+
     if (!phone.trim()) {
-      Alert.alert('Error', 'Please enter your phone number');
-      return false;
+      errors.phone = 'Please enter your phone number';
+    } else {
+      const phoneRegex = /^[0-9]{10}$/;
+      if (!phoneRegex.test(phone)) {
+        errors.phone = 'Please enter a valid 10-digit phone number';
+      }
     }
-    const phoneRegex = /^[0-9]{10}$/;
-    if (!phoneRegex.test(phone)) {
-      Alert.alert('Error', 'Please enter a valid 10-digit phone number');
-      return false;
-    }
+
     if (!password) {
-      Alert.alert('Error', 'Please enter a password');
-      return false;
+      errors.password = 'Please enter a password';
+    } else if (password.length < 6) {
+      errors.password = 'Password must be at least 6 characters long';
     }
-    if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters long');
-      return false;
+
+    if (!confirmPassword) {
+      errors.confirmPassword = 'Please confirm your password';
+    } else if (password !== confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match';
     }
-    if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
-      return false;
-    }
-    return true;
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleRegister = async () => {
     setError('');
+    setFieldErrors({});
+
     if (!validateForm()) {
       return;
     }
 
     try {
       setLoading(true);
+      console.log('Sending registration request to:', `${API_URL}/customer/register`);
+      
       const response = await axios.post(`${API_URL}/customer/register`, {
-        name,
-        email,
-        phone,
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone.trim(),
         password,
+      }, {
+        timeout: 10000, // 10 second timeout
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
       });
 
+      console.log('Registration response:', response.data);
       const { token, user } = response.data;
       
       await AsyncStorage.setItem('token', token);
@@ -89,11 +106,103 @@ const RegisterScreen = () => {
         }
       ]);
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Please check your details and try again');
+      console.error('Registration error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        code: error.code
+      });
+      
+      if (!error.response) {
+        if (error.code === 'ECONNABORTED') {
+          setError('Request timed out. Please try again.');
+        } else if (error.message === 'Network Error') {
+          setError('Cannot connect to server. Please check your internet connection and try again.');
+        } else {
+          setError('Network error. Please try again later.');
+        }
+        return;
+      }
+
+      const errorData = error.response.data;
+      
+      if (errorData.fields) {
+        // Handle field-specific errors
+        const errors: Record<string, string> = {};
+        errorData.fields.forEach((field: string) => {
+          errors[field] = `Please enter your ${field}`;
+        });
+        setFieldErrors(errors);
+      } else if (errorData.errors) {
+        // Handle validation errors
+        const errors: Record<string, string> = {};
+        errorData.errors.forEach((err: string) => {
+          if (err.includes('email')) errors.email = err;
+          else if (err.includes('phone')) errors.phone = err;
+          else if (err.includes('password')) errors.password = err;
+          else if (err.includes('name')) errors.name = err;
+        });
+        setFieldErrors(errors);
+      } else if (errorData.message) {
+        // Handle specific error messages
+        if (errorData.message === 'Email already registered') {
+          setFieldErrors({ email: 'This email is already registered' });
+        } else {
+          setError(errorData.message);
+        }
+      } else {
+        // Handle generic error
+        setError('Registration failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  const renderInput = (
+    icon: string,
+    placeholder: string,
+    value: string,
+    onChangeText: (text: string) => void,
+    keyboardType: 'default' | 'email-address' | 'phone-pad' = 'default',
+    secureTextEntry: boolean = false,
+    showPasswordToggle: boolean = false,
+    error?: string
+  ) => (
+    <View>
+      <View style={[
+        styles.inputContainer,
+        error && styles.inputContainerError
+      ]}>
+        <Ionicons name={icon as any} size={20} color={error ? COLORS.error : COLORS.textSecondary} style={styles.inputIcon} />
+        <TextInput
+          style={[styles.input, error && styles.inputError]}
+          placeholder={placeholder}
+          placeholderTextColor={COLORS.textSecondary}
+          value={value}
+          onChangeText={onChangeText}
+          keyboardType={keyboardType}
+          secureTextEntry={secureTextEntry}
+          autoCapitalize="none"
+        />
+        {showPasswordToggle && (
+          <TouchableOpacity
+            style={styles.eyeButton}
+            onPress={() => setShowPassword((v) => !v)}
+          >
+            <Ionicons
+              name={showPassword ? 'eye-off' : 'eye'}
+              size={24}
+              color={COLORS.textSecondary}
+            />
+          </TouchableOpacity>
+        )}
+      </View>
+      {error && (
+        <Text style={styles.fieldError}>{error}</Text>
+      )}
+    </View>
+  );
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -105,81 +214,56 @@ const RegisterScreen = () => {
         <Text style={styles.subtitle}>Join us! Please register to continue</Text>
       </View>
       <View style={styles.formContainer}>
-        <View style={styles.inputContainer}>
-          <Ionicons name="person-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
-          <TextInput
-            style={styles.input}
-            placeholder="Full Name"
-            placeholderTextColor={COLORS.textSecondary}
-            value={name}
-            onChangeText={setName}
-          />
-        </View>
-        <View style={styles.inputContainer}>
-          <Ionicons name="mail-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor={COLORS.textSecondary}
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-          />
-        </View>
-        <View style={styles.inputContainer}>
-          <Ionicons name="call-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
-          <TextInput
-            style={styles.input}
-            placeholder="Phone Number"
-            placeholderTextColor={COLORS.textSecondary}
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-          />
-        </View>
-        <View style={styles.inputContainer}>
-          <Ionicons name="lock-closed-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor={COLORS.textSecondary}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry={!showPassword}
-          />
-          <TouchableOpacity
-            style={styles.eyeButton}
-            onPress={() => setShowPassword((v) => !v)}
-          >
-            <Ionicons
-              name={showPassword ? 'eye-off' : 'eye'}
-              size={24}
-              color={COLORS.textSecondary}
-            />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.inputContainer}>
-          <Ionicons name="lock-closed-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
-          <TextInput
-            style={styles.input}
-            placeholder="Confirm Password"
-            placeholderTextColor={COLORS.textSecondary}
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry={!showConfirmPassword}
-          />
-          <TouchableOpacity
-            style={styles.eyeButton}
-            onPress={() => setShowConfirmPassword((v) => !v)}
-          >
-            <Ionicons
-              name={showConfirmPassword ? 'eye-off' : 'eye'}
-              size={24}
-              color={COLORS.textSecondary}
-            />
-          </TouchableOpacity>
-        </View>
+        {renderInput(
+          "person-outline",
+          "Full Name",
+          name,
+          setName,
+          'default',
+          false,
+          false,
+          fieldErrors.name
+        )}
+        {renderInput(
+          "mail-outline",
+          "Email",
+          email,
+          setEmail,
+          'email-address',
+          false,
+          false,
+          fieldErrors.email
+        )}
+        {renderInput(
+          "call-outline",
+          "Phone Number",
+          phone,
+          setPhone,
+          'phone-pad',
+          false,
+          false,
+          fieldErrors.phone
+        )}
+        {renderInput(
+          "lock-closed-outline",
+          "Password",
+          password,
+          setPassword,
+          'default',
+          !showPassword,
+          true,
+          fieldErrors.password
+        )}
+        {renderInput(
+          "lock-closed-outline",
+          "Confirm Password",
+          confirmPassword,
+          setConfirmPassword,
+          'default',
+          !showConfirmPassword,
+          true,
+          fieldErrors.confirmPassword
+        )}
         {!!error && (
           <View style={styles.errorContainer}>
             <Ionicons name="alert-circle" size={20} color={COLORS.error} />
@@ -308,6 +392,19 @@ const styles = StyleSheet.create({
     marginLeft: SIZES.base,
     fontSize: FONTS.body3.fontSize,
     fontWeight: '500',
+  },
+  inputContainerError: {
+    borderColor: COLORS.error,
+  },
+  inputError: {
+    color: COLORS.error,
+  },
+  fieldError: {
+    color: COLORS.error,
+    fontSize: FONTS.body4.fontSize,
+    marginTop: -SIZES.base,
+    marginBottom: SIZES.base,
+    marginLeft: SIZES.base,
   },
 });
 
