@@ -125,6 +125,12 @@ const AdminWorkersScreen = () => {
         }
       });
       console.log('Workers fetched successfully');
+      console.log('Workers data:', response.data);
+      console.log('Number of workers:', response.data.length);
+      if (response.data.length > 0) {
+        console.log('First worker _id:', response.data[0]._id);
+        console.log('First worker structure:', Object.keys(response.data[0]));
+      }
       setWorkers(response.data);
       setError('');
     } catch (err) {
@@ -202,10 +208,17 @@ const AdminWorkersScreen = () => {
   };
 
   const handleWorkerPress = (workerId: string) => {
-    router.push({
-      pathname: '/worker-details',
-      params: { workerId },
-    } as any);
+    console.log('=== WORKER PRESS DEBUG ===');
+    console.log('Worker ID being passed:', workerId);
+    console.log('Worker ID type:', typeof workerId);
+    console.log('Worker ID length:', workerId?.length);
+    
+    if (!workerId) {
+      console.error('Worker ID is undefined or empty!');
+      return;
+    }
+    
+    router.push(`/(admin)/worker-detail/${workerId}` as any);
   };
 
   // Show all workers, only filter by search query (not by status)
@@ -293,7 +306,7 @@ const AdminWorkersScreen = () => {
           <TouchableOpacity
             key={worker._id}
             activeOpacity={0.85}
-            onPress={() => router.push({ pathname: '/(admin)/worker-detail', params: { id: worker._id } })}
+            onPress={() => handleWorkerPress(worker._id)}
           >
             <Card
               variant="elevated"
@@ -321,14 +334,20 @@ const AdminWorkersScreen = () => {
                   <>
                     <TouchableOpacity
                       style={[styles.actionButton, styles.approveButton]}
-                      onPress={() => handleApprove(worker._id)}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleApprove(worker._id);
+                      }}
                     >
                       <Ionicons name="checkmark-circle" size={20} color={COLORS.white} />
                       <Text style={styles.actionButtonText}>Approve</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.actionButton, styles.rejectButton]}
-                      onPress={() => handleReject(worker._id)}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleReject(worker._id);
+                      }}
                     >
                       <Ionicons name="close-circle" size={20} color={COLORS.white} />
                       <Text style={styles.actionButtonText}>Reject</Text>
@@ -337,7 +356,10 @@ const AdminWorkersScreen = () => {
                 ) : (
                   <TouchableOpacity
                     style={[styles.actionButton, styles.blockButton]}
-                    onPress={() => handleBlock(worker._id)}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleBlock(worker._id);
+                    }}
                   >
                     <Ionicons name="ban" size={20} color={COLORS.white} />
                     <Text style={styles.actionButtonText}>Block</Text>

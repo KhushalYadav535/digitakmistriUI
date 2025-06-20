@@ -220,7 +220,7 @@ const AdminProfileScreen = () => {
                   <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
                     <Text style={styles.saveButtonText}>Save</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.cancelButton} onPress={() => { setEditMode(false); setName(profile.name); setEmail(profile.email); setPassword(''); }}>
+                  <TouchableOpacity style={styles.cancelButton} onPress={() => { setEditMode(false); setName(profile?.name || ''); setEmail(profile?.email || ''); setPassword(''); }}>
                     <Text style={styles.cancelButtonText}>Cancel</Text>
                   </TouchableOpacity>
                 </View>
@@ -228,8 +228,8 @@ const AdminProfileScreen = () => {
               </>
             ) : (
               <>
-                <Text style={styles.name}>{profile.name}</Text>
-                <Text style={styles.email}>{profile.email}</Text>
+                <Text style={styles.name}>{profile?.name || 'Loading...'}</Text>
+                <Text style={styles.email}>{profile?.email || 'Loading...'}</Text>
                 <TouchableOpacity style={styles.editProfileBtn} onPress={() => setEditMode(true)}>
                   <Ionicons name="create-outline" size={18} color={COLORS.primary} />
                   <Text style={{ color: COLORS.primary, marginLeft: 4 }}>Edit Profile</Text>

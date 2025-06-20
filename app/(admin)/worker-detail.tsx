@@ -19,19 +19,84 @@ const WorkerDetailScreen = () => {
       try {
         setLoading(true);
         setError('');
+        console.log('=== WORKER DETAIL DEBUG ===');
+        console.log('Worker ID:', id);
+        console.log('API_URL:', API_URL);
+        
+        if (!id) {
+          setError('Worker ID is missing');
+          setLoading(false);
+          return;
+        }
+        
         const token = await AsyncStorage.getItem('token');
-        const res = await axios.get(`${API_URL}/admin/workers/${id}`, {
+        console.log('Token exists:', !!token);
+        console.log('Token length:', token?.length);
+        
+        if (!token) {
+          setError('Authentication failed. Please login again.');
+          setLoading(false);
+          return;
+        }
+        
+        const apiUrl = `${API_URL}/admin/workers/${id}`;
+        console.log('Making request to:', apiUrl);
+        
+        // Add timeout to prevent infinite loading
+        const res = await axios.get(apiUrl, {
           headers: { Authorization: `Bearer ${token}` },
+          timeout: 10000 // 10 second timeout
+        });
+        console.log('Worker data received:', res.data);
+        setWorker(res.data);
+      } catch (err: any) {
+        console.error('=== WORKER DETAIL ERROR ===');
+        console.error('Error type:', err.name);
+        console.error('Error message:', err.message);
+        console.error('Error code:', err.code);
+        console.error('Error response status:', err.response?.status);
+        console.error('Error response data:', err.response?.data);
+        
+        let errorMessage = 'Failed to load worker details';
+        if (err.code === 'ECONNABORTED') {
+          errorMessage = 'Request timed out. Please try again.';
+        } else if (err.response?.status === 404) {
+          errorMessage = 'Worker not found';
+        } else if (err.response?.status === 401) {
+          errorMessage = 'Authentication failed. Please login again.';
+        } else if (err.code === 'NETWORK_ERROR') {
+          errorMessage = 'Network error. Please check your connection.';
+        }
+        setError(errorMessage);
+      } finally {
+        setLoading(false);
+        console.log('=== WORKER DETAIL LOADING COMPLETE ===');
+      }
+    };
+    fetchWorker();
+  }, [id]);
+
+  const handleRetry = () => {
+    setError('');
+    setLoading(true);
+    // Re-fetch worker data
+    const fetchWorker = async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const apiUrl = `${API_URL}/admin/workers/${id}`;
+        const res = await axios.get(apiUrl, {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 10000
         });
         setWorker(res.data);
-      } catch (err) {
+      } catch (err: any) {
         setError('Failed to load worker details');
       } finally {
         setLoading(false);
       }
     };
-    if (id) fetchWorker();
-  }, [id]);
+    fetchWorker();
+  };
 
   if (loading) {
     return (
@@ -42,8 +107,33 @@ const WorkerDetailScreen = () => {
   }
   if (error) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={{ color: COLORS.error }}>{error}</Text>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+        <Text style={{ color: COLORS.error, marginBottom: 20, textAlign: 'center' }}>{error}</Text>
+        <TouchableOpacity 
+          style={{ 
+            backgroundColor: COLORS.primary, 
+            padding: 12, 
+            borderRadius: 8,
+            paddingHorizontal: 20,
+            marginBottom: 10
+          }} 
+          onPress={handleRetry}
+        >
+          <Text style={{ color: COLORS.white, fontWeight: '600' }}>Retry</Text>
+        </TouchableOpacity>
+        {error.includes('Authentication failed') && (
+          <TouchableOpacity 
+            style={{ 
+              backgroundColor: COLORS.error, 
+              padding: 12, 
+              borderRadius: 8,
+              paddingHorizontal: 20
+            }} 
+            onPress={() => router.replace('/(auth)/admin-login' as any)}
+          >
+            <Text style={{ color: COLORS.white, fontWeight: '600' }}>Go to Login</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   }
