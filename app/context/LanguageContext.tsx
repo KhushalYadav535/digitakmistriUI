@@ -71,4 +71,7 @@ export const useLanguage = () => {
     throw new Error('useLanguage must be used within a LanguageProvider');
   }
   return context;
-}; 
+};
+
+// Default export for Expo Router compatibility
+export default LanguageContext; 

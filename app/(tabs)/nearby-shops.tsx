@@ -158,7 +158,7 @@ export default function NearbyShopsScreen() {
             <View key={shop._id} style={styles.shopCard}>
               {shop.images && shop.images.length > 0 && (
                 <Image
-                  source={{ uri: shop.images[0] }}
+                  source={{ uri: `${API_URL}${shop.images[0]}` }}
                   style={styles.shopImage}
                 />
               )}

@@ -241,6 +241,8 @@ const JobDetailsScreen = () => {
   };
 
   const getStatusColor = (status: string) => {
+    if (!status) return COLORS.textSecondary;
+    
     switch (status.toLowerCase()) {
       case 'pending':
         return COLORS.warning;
@@ -285,7 +287,7 @@ const JobDetailsScreen = () => {
             <Text style={styles.label}>Status:</Text>
             <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(job.status)}20` }]}>
               <Text style={[styles.statusText, { color: getStatusColor(job.status) }]}>
-                {job.status.charAt(0).toUpperCase() + job.status.slice(1).replace('_', ' ')}
+                {job.status ? job.status.charAt(0).toUpperCase() + job.status.slice(1).replace('_', ' ') : 'Unknown'}
               </Text>
             </View>
           </View>

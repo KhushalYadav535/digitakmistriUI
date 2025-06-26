@@ -11,9 +11,9 @@ export default function TabLayout() {
         tabBarStyle: {
           borderTopWidth: 1,
           borderTopColor: COLORS.lightGray,
-          paddingTop: 8,
-          paddingBottom: 8,
-          height: 65,
+          paddingTop: 12,
+          paddingBottom: 12,
+          height: 85,
           elevation: 8,
           shadowColor: '#000',
           shadowOffset: {
@@ -64,6 +64,12 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person" size={24} color={color} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="payment"
+        options={{
+          href: null,
         }}
       />
     </Tabs>

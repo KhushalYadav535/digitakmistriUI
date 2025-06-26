@@ -17,3 +17,11 @@ export const fetchWorkers = async () => {
   });
   return res.data;
 };
+
+// Default export for Expo Router compatibility
+const dashboardApi = {
+  fetchDashboardOverview,
+  fetchWorkers,
+};
+
+export default dashboardApi;

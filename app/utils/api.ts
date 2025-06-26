@@ -133,4 +133,7 @@ export const apiClient = new ApiClient();
 export const socket = io(SOCKET_URL, {
   autoConnect: false, // We'll connect after login
   transports: ['websocket'],
-}); 
+});
+
+// Default export for Expo Router compatibility
+export default apiClient; 

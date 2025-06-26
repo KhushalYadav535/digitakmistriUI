@@ -53,3 +53,15 @@ export const API_ERRORS = {
 export const ENV = process.env.NODE_ENV || 'development';
 
 export const SOCKET_URL = process.env.NODE_ENV === 'development' ? 'http://192.168.1.3:5000' : 'https://digital-mistri.onrender.com';
+
+// Default export for Expo Router compatibility
+const config = {
+  API_CONFIG,
+  getCurrentApiUrl,
+  API_URL,
+  API_ERRORS,
+  ENV,
+  SOCKET_URL,
+};
+
+export default config;

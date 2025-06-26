@@ -72,11 +72,15 @@ const AdminLayout = () => {
         }}
       />
       <Tabs.Screen
-        name="worker-detail"
+        name="nearby-shops"
         options={{
-          href: null,
+          title: 'Nearby Shops',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="map-outline" size={size} color={color} />
+          ),
         }}
       />
+
     </Tabs>
   );
 };

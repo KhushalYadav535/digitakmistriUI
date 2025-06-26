@@ -52,6 +52,7 @@ const NearbyShopsScreen = () => {
     const [error, setError] = useState('');
     const [showAddForm, setShowAddForm] = useState(false);
     const [location, setLocation] = useState<Location.LocationObject | null>(null);
+    const [image, setImage] = useState<string | null>(null);
     const [formData, setFormData] = useState({
         name: '',
         description: '',
@@ -97,6 +98,19 @@ const NearbyShopsScreen = () => {
         }
     };
 
+    const pickImage = async () => {
+        let result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [4, 3],
+            quality: 1,
+        });
+
+        if (!result.canceled) {
+            setImage(result.assets[0].uri);
+        }
+    };
+
     const loadShops = async () => {
         try {
             setLoading(true);
@@ -121,39 +135,43 @@ const NearbyShopsScreen = () => {
             }
 
             const token = await AsyncStorage.getItem('token');
-            const requestData = {
-                name: formData.name.trim(),
-                description: formData.description.trim(),
-                phone: formData.phone.trim(),
-                email: formData.email.trim(),
-                address: {
-                    street: formData.address.street.trim(),
-                    city: formData.address.city.trim(),
-                    state: formData.address.state.trim(),
-                    pincode: formData.address.pincode.trim()
-                },
-                location: {
-                    type: 'Point',
-                    coordinates: [Number(location.coords.longitude), Number(location.coords.latitude)]
-                },
-                services: formData.services,
-                workingHours: formData.workingHours,
-                images: formData.images
-            };
+            const requestData = new FormData();
+
+            requestData.append('name', formData.name.trim());
+            requestData.append('description', formData.description.trim());
+            requestData.append('phone', formData.phone.trim());
+            requestData.append('email', formData.email.trim());
+            
+            // Stringify complex objects
+            requestData.append('address', JSON.stringify(formData.address));
+            requestData.append('location', JSON.stringify({
+                type: 'Point',
+                coordinates: [location.coords.longitude, location.coords.latitude]
+            }));
+            requestData.append('services', JSON.stringify(formData.services));
+            requestData.append('workingHours', JSON.stringify(formData.workingHours));
+
+            if (image) {
+                const uriParts = image.split('.');
+                const fileType = uriParts[uriParts.length - 1];
+                requestData.append('image', {
+                    uri: image,
+                    name: `photo.${fileType}`,
+                    type: `image/${fileType}`,
+                } as any);
+            }
 
             // Log the complete request data
             console.log('=== Shop Creation Request ===');
             console.log('URL:', `${API_URL}/nearby-shops`);
-            console.log('Request Data:', JSON.stringify(requestData, null, 2));
-            console.log('Token:', token ? 'Present' : 'Missing');
-
+            
             const response = await axios.post(
                 `${API_URL}/nearby-shops`,
                 requestData,
                 { 
                     headers: { 
                         'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'multipart/form-data',
                     } 
                 }
             );
@@ -184,6 +202,7 @@ const NearbyShopsScreen = () => {
                     },
                     images: []
                 });
+                setImage(null);
                 loadShops();
             }
         } catch (err: any) {
@@ -248,81 +267,100 @@ const NearbyShopsScreen = () => {
             </View>
 
             {showAddForm && (
-                <ScrollView style={styles.form}>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Shop Name"
-                        value={formData.name}
-                        onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
-                    />
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Description"
-                        value={formData.description}
-                        onChangeText={(text) => setFormData(prev => ({ ...prev, description: text }))}
-                        multiline
-                    />
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Street"
-                        value={formData.address.street}
-                        onChangeText={(text) => setFormData(prev => ({
-                            ...prev,
-                            address: { ...prev.address, street: text }
-                        }))}
-                    />
-                    <TextInput
-                        style={styles.input}
-                        placeholder="City"
-                        value={formData.address.city}
-                        onChangeText={(text) => setFormData(prev => ({
-                            ...prev,
-                            address: { ...prev.address, city: text }
-                        }))}
-                    />
-                    <TextInput
-                        style={styles.input}
-                        placeholder="State"
-                        value={formData.address.state}
-                        onChangeText={(text) => setFormData(prev => ({
-                            ...prev,
-                            address: { ...prev.address, state: text }
-                        }))}
-                    />
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Pincode"
-                        value={formData.address.pincode}
-                        onChangeText={(text) => setFormData(prev => ({
-                            ...prev,
-                            address: { ...prev.address, pincode: text }
-                        }))}
-                    />
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Phone"
-                        value={formData.phone}
-                        onChangeText={(text) => setFormData(prev => ({ ...prev, phone: text }))}
-                    />
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Email"
-                        value={formData.email}
-                        onChangeText={(text) => setFormData(prev => ({ ...prev, email: text }))}
-                    />
-                    <View style={styles.servicesContainer}>
-                        <Text style={styles.servicesLabel}>Services</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Services (comma-separated)"
-                            value={formData.services.join(', ')}
-                            onChangeText={(text) => setFormData({ ...formData, services: text.split(',').map(s => s.trim()) })}
-                        />
+                <Modal
+                    animationType="slide"
+                    transparent={true}
+                    visible={showAddForm}
+                    onRequestClose={() => setShowAddForm(false)}
+                >
+                    <View style={styles.modalContainer}>
+                        <ScrollView style={styles.formContainer} showsVerticalScrollIndicator={false}>
+                            <Text style={styles.formTitle}>Add New Shop</Text>
+
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Shop Name"
+                                value={formData.name}
+                                onChangeText={(text) => setFormData({ ...formData, name: text })}
+                            />
+                            
+                            <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
+                                <Ionicons name="camera" size={24} color={COLORS.primary} />
+                                <Text style={styles.imagePickerText}>Select Shop Image</Text>
+                            </TouchableOpacity>
+
+                            {image && <Image source={{ uri: image }} style={styles.previewImage} />}
+
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Description"
+                                value={formData.description}
+                                onChangeText={(text) => setFormData(prev => ({ ...prev, description: text }))}
+                                multiline
+                            />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Street"
+                                value={formData.address.street}
+                                onChangeText={(text) => setFormData(prev => ({
+                                    ...prev,
+                                    address: { ...prev.address, street: text }
+                                }))}
+                            />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="City"
+                                value={formData.address.city}
+                                onChangeText={(text) => setFormData(prev => ({
+                                    ...prev,
+                                    address: { ...prev.address, city: text }
+                                }))}
+                            />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="State"
+                                value={formData.address.state}
+                                onChangeText={(text) => setFormData(prev => ({
+                                    ...prev,
+                                    address: { ...prev.address, state: text }
+                                }))}
+                            />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Pincode"
+                                value={formData.address.pincode}
+                                onChangeText={(text) => setFormData(prev => ({
+                                    ...prev,
+                                    address: { ...prev.address, pincode: text }
+                                }))}
+                            />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Phone"
+                                value={formData.phone}
+                                onChangeText={(text) => setFormData(prev => ({ ...prev, phone: text }))}
+                            />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Email"
+                                value={formData.email}
+                                onChangeText={(text) => setFormData(prev => ({ ...prev, email: text }))}
+                            />
+                            <View style={styles.servicesContainer}>
+                                <Text style={styles.servicesLabel}>Services</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Services (comma-separated)"
+                                    value={formData.services.join(', ')}
+                                    onChangeText={(text) => setFormData({ ...formData, services: text.split(',').map(s => s.trim()) })}
+                                />
+                            </View>
+                            <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+                                <Text style={styles.submitButtonText}>Add Shop</Text>
+                            </TouchableOpacity>
+                        </ScrollView>
                     </View>
-                    <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-                        <Text style={styles.submitButtonText}>Add Shop</Text>
-                    </TouchableOpacity>
-                </ScrollView>
+                </Modal>
             )}
 
             <ScrollView style={styles.shopsList}>
@@ -383,16 +421,30 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    form: {
+    modalContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.5)',
+    },
+    formContainer: {
+        backgroundColor: COLORS.white,
         padding: SIZES.medium,
+        borderRadius: SIZES.radius,
+        width: '80%',
+        maxHeight: '80%',
+    },
+    formTitle: {
+        fontSize: FONTS.h3.fontSize,
+        fontWeight: 'bold',
+        color: COLORS.textPrimary,
+        marginBottom: SIZES.medium,
     },
     input: {
-        backgroundColor: COLORS.white,
+        backgroundColor: COLORS.lightGray,
         padding: SIZES.medium,
         borderRadius: SIZES.base,
         marginBottom: SIZES.medium,
-        borderWidth: 1,
-        borderColor: COLORS.border,
     },
     servicesContainer: {
         marginBottom: SIZES.medium,
@@ -482,6 +534,25 @@ const styles = StyleSheet.create({
     loadingText: {
         marginTop: SIZES.medium,
         color: COLORS.textSecondary,
+    },
+    imagePicker: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: COLORS.lightGray,
+        padding: SIZES.medium,
+        borderRadius: SIZES.radius,
+        marginBottom: SIZES.medium,
+    },
+    imagePickerText: {
+        marginLeft: SIZES.base,
+        color: COLORS.primary,
+        ...FONTS.body3,
+    },
+    previewImage: {
+        width: '100%',
+        height: 200,
+        borderRadius: SIZES.radius,
+        marginBottom: SIZES.medium,
     },
 });
 

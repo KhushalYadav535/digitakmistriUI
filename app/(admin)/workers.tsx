@@ -223,10 +223,10 @@ const AdminWorkersScreen = () => {
 
   // Show all workers, only filter by search query (not by status)
   const filteredWorkers = workers.filter((worker) =>
-    worker.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    worker.services.some(service => 
-      service.toLowerCase().includes(searchQuery.toLowerCase())
-    )
+    (worker.name && worker.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (worker.services && worker.services.some(service => 
+      service && service.toLowerCase().includes(searchQuery.toLowerCase())
+    ))
   );
 
   if (loading) {

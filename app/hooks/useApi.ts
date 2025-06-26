@@ -44,4 +44,7 @@ export function useApi<T>(
   }, []);
 
   return { data, loading, error, execute, reset };
-} 
+}
+
+// Default export for Expo Router compatibility
+export default useApi; 

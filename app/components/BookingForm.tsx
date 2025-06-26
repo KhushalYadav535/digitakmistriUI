@@ -94,6 +94,9 @@ const BookingForm: React.FC<BookingFormProps> = ({
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
+        </TouchableOpacity>
         <Text style={styles.title}>Book Service</Text>
         {initialService && (
           <View style={styles.serviceInfo}>
@@ -220,6 +223,7 @@ interface Styles {
   dateTimeButton: ViewStyle;
   dateTimeText: TextStyle;
   submitButton: ViewStyle;
+  backButton: ViewStyle;
 }
 
 const styles = StyleSheet.create<Styles>({
@@ -229,8 +233,10 @@ const styles = StyleSheet.create<Styles>({
   },
   header: {
     padding: SIZES.padding,
+    paddingTop: SIZES.padding * 2,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
+    position: 'relative',
   },
   title: {
     ...FONTS.h2,
@@ -273,6 +279,11 @@ const styles = StyleSheet.create<Styles>({
   },
   submitButton: {
     marginTop: SIZES.padding * 2,
+  },
+  backButton: {
+    position: 'absolute',
+    top: SIZES.padding,
+    left: SIZES.padding,
   },
 });
 

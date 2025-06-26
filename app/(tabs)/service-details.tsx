@@ -1,8 +1,9 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Alert } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../constants/theme';
+import { COLORS, FONTS, SIZES } from '../constants/theme';
+import BookingForm from '../components/BookingForm';
 
 // Service details data
 const serviceDetails = {
@@ -127,12 +128,45 @@ const serviceDetails = {
 const ServiceDetailScreen = () => {
   const { serviceId } = useLocalSearchParams();
   const service = serviceDetails[serviceId as keyof typeof serviceDetails];
+  const [selectedService, setSelectedService] = useState<any>(null);
+  const [showBookingForm, setShowBookingForm] = useState(false);
 
   if (!service) {
     return (
       <View style={styles.centered}>
         <Text style={styles.errorText}>Service not found.</Text>
       </View>
+    );
+  }
+
+  const handleBookNow = (item: any) => {
+    setSelectedService(item);
+    setShowBookingForm(true);
+  };
+
+  const handleBookingSubmit = (bookingData: any) => {
+    // Navigate to payment page with booking data
+    router.push({ 
+      pathname: '/(tabs)/payment' as any, 
+      params: { 
+        serviceId: serviceId,
+        serviceTitle: selectedService.title,
+        servicePrice: selectedService.price.replace('₹', ''),
+        bookingData: JSON.stringify(bookingData)
+      } 
+    });
+  };
+
+  if (showBookingForm && selectedService) {
+    return (
+      <BookingForm
+        initialService={{
+          id: serviceId as string,
+          title: selectedService.title,
+          type: selectedService.subtitle
+        }}
+        onSubmit={handleBookingSubmit}
+      />
     );
   }
 
@@ -167,14 +201,7 @@ const ServiceDetailScreen = () => {
             <View style={{ marginTop: 8, alignItems: 'flex-end' }}>
               <TouchableOpacity
                 style={styles.bookNowBtn}
-                onPress={() => router.push({ 
-                  pathname: '/(tabs)/booking' as any, 
-                  params: { 
-                    serviceId: serviceId,
-                    serviceTitle: item.title,
-                    servicePrice: item.price
-                  } 
-                })}
+                onPress={() => handleBookNow(item)}
               >
                 <Text style={styles.bookNowText}>Book Now</Text>
               </TouchableOpacity>

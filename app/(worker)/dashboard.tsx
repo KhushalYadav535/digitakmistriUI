@@ -153,7 +153,7 @@ const WorkerDashboardScreen = () => {
   };
 
   const handleSupportCall = () => {
-    Linking.openURL('tel:+911234567890');
+    Linking.openURL('tel:+916307044134');
   };
 
   const getEarningsAmount = () => {
@@ -488,13 +488,22 @@ const WorkerDashboardScreen = () => {
           )}
         </View>
 
-        <TouchableOpacity 
-          style={styles.supportButton}
-          onPress={handleSupportCall}
-        >
-          <Ionicons name="call" size={24} color={COLORS.white} />
-          <Text style={styles.supportButtonText}>{t.support}</Text>
-        </TouchableOpacity>
+        <View style={styles.supportContainer}>
+          <TouchableOpacity 
+            style={styles.supportButton}
+            onPress={handleSupportCall}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={[COLORS.secondary, COLORS.primary]}
+              style={StyleSheet.absoluteFill}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            />
+            <Ionicons name="call" size={24} color={COLORS.white} />
+            <Text style={styles.supportButtonText}>{t.support}</Text>
+          </TouchableOpacity>
+        </View>
       </Animated.View>
     </ScrollView>
   );
@@ -676,15 +685,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: SIZES.base,
   },
+  supportContainer: {
+    paddingHorizontal: SIZES.medium,
+    marginVertical: SIZES.medium,
+  },
   supportButton: {
-    borderRadius: SIZES.base,
-    overflow: 'hidden',
-    ...SHADOWS.medium,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     padding: SIZES.medium,
     gap: SIZES.base,
+    borderRadius: SIZES.base,
+    overflow: 'hidden',
+    ...SHADOWS.medium,
   },
   supportButtonText: {
     color: COLORS.white,

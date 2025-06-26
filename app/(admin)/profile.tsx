@@ -11,12 +11,6 @@ import { socket } from '../utils/api';
 
 const settings = [
   {
-    id: '1',
-    title: 'Edit Profile',
-    icon: 'person',
-    route: '/edit-profile',
-  },
-  {
     id: '2',
     title: 'Notifications',
     icon: 'notifications',

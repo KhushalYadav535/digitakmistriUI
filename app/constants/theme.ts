@@ -119,4 +119,12 @@ export const SHADOWS = {
   },
 };
 
-export default { COLORS, SIZES, FONTS, SHADOWS }; 
+// Default export for Expo Router compatibility
+const theme = {
+  COLORS,
+  SIZES,
+  FONTS,
+  SHADOWS,
+};
+
+export default theme;
