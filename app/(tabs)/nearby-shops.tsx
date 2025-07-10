@@ -17,6 +17,7 @@ import axios from 'axios';
 import * as Location from 'expo-location';
 import { API_URL } from '../constants/config';
 import { COLORS, FONTS, SIZES } from '../constants/theme';
+import { getImageUrl } from '../utils/imageUtils';
 
 interface Shop {
   _id: string;
@@ -158,7 +159,7 @@ export default function NearbyShopsScreen() {
             <View key={shop._id} style={styles.shopCard}>
               {shop.images && shop.images.length > 0 && (
                 <Image
-                  source={{ uri: `${API_URL}${shop.images[0]}` }}
+                  source={{ uri: getImageUrl(shop.images[0]) }}
                   style={styles.shopImage}
                 />
               )}

@@ -21,6 +21,38 @@ import { COLORS, FONTS, SHADOWS, SIZES } from '../../constants/theme';
 import { apiClient } from '../utils/api';
 import { useApi } from '../hooks/useApi';
 
+// Translations
+const translations = {
+  en: {
+    greeting: 'Hello',
+    language: 'HI',
+    earnings: {
+      daily: 'Today',
+      weekly: 'This Week',
+      monthly: 'This Month'
+    },
+    jobsCompleted: 'Jobs Completed',
+    totalBookings: 'Total Bookings',
+    available: 'Available',
+    support: 'Support',
+    jobRequests: 'Job Requests'
+  },
+  hi: {
+    greeting: 'नमस्ते',
+    language: 'EN',
+    earnings: {
+      daily: 'आज',
+      weekly: 'इस हफ्ते',
+      monthly: 'इस महीने'
+    },
+    jobsCompleted: 'पूरे किए गए काम',
+    totalBookings: 'कुल बुकिंग',
+    available: 'उपलब्ध',
+    support: 'सहायता',
+    jobRequests: 'काम के अनुरोध'
+  }
+};
+
 interface JobRequest {
   _id: string;
   service: string;
@@ -75,6 +107,8 @@ const WorkerDashboardScreen = () => {
   const [assignedBookings, setAssignedBookings] = useState<any[]>([]);
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const t = translations[language];
 
   const { execute: fetchDashboard, loading, error } = useApi(async () => {
     const token = await AsyncStorage.getItem('token');
@@ -165,7 +199,7 @@ const WorkerDashboardScreen = () => {
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     
     // Filter earnings based on the selected period
-    const earnings = worker.stats.earnings || [];
+    const earnings = worker?.stats.earnings || [];
     let periodEarnings = 0;
     
     switch (earningsPeriod) {
@@ -228,55 +262,6 @@ const WorkerDashboardScreen = () => {
   }
 
   if (!worker) return <View style={{flex:1, justifyContent:'center', alignItems:'center'}}><Text>No worker data found.</Text></View>;
-
-  const translations = {
-    en: {
-      greeting: 'Good Morning,',
-      todayEarnings: "Today's Earnings",
-      jobsCompleted: 'Jobs Completed',
-      totalBookings: 'Total Bookings',
-      rating: 'Rating',
-      available: 'Available',
-      jobRequests: 'Job Requests',
-      accept: 'Accept',
-      reject: 'Reject',
-      viewDetails: 'View Details',
-      start: 'Start',
-      complete: 'Complete',
-      cancel: 'Cancel',
-      support: 'Support',
-      language: 'भाषा बदलें',
-      earnings: {
-        daily: 'Daily Earnings',
-        weekly: 'Weekly Earnings',
-        monthly: 'Monthly Earnings',
-      },
-    },
-    hi: {
-      greeting: 'सुप्रभात,',
-      todayEarnings: 'आज की कमाई',
-      jobsCompleted: 'पूरे किए गए काम',
-      totalBookings: 'कुल बुकिंग',
-      rating: 'रेटिंग',
-      available: 'उपलब्ध',
-      jobRequests: 'काम के अनुरोध',
-      accept: 'स्वीकार करें',
-      reject: 'अस्वीकार करें',
-      viewDetails: 'विवरण देखें',
-      start: 'शुरू करें',
-      complete: 'पूरा करें',
-      cancel: 'रद्द करें',
-      support: 'सहायता',
-      language: 'Change Language',
-      earnings: {
-        daily: 'दैनिक कमाई',
-        weekly: 'साप्ताहिक कमाई',
-        monthly: 'मासिक कमाई',
-      },
-    },
-  };
-
-  const t = translations[language];
 
   const renderJobActions = (job: any) => (
     <View style={styles.actionButtons}>
@@ -343,6 +328,33 @@ const WorkerDashboardScreen = () => {
     );
   };
 
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={{ marginTop: SIZES.medium, color: COLORS.textSecondary }}>
+          Loading dashboard...
+        </Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ color: COLORS.error, textAlign: 'center', marginHorizontal: SIZES.medium }}>
+          {error}
+        </Text>
+        <TouchableOpacity 
+          style={{ marginTop: SIZES.medium, padding: SIZES.medium, backgroundColor: COLORS.primary, borderRadius: SIZES.base }}
+          onPress={fetchDashboard}
+        >
+          <Text style={{ color: COLORS.white }}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <ScrollView 
       style={styles.container} 
@@ -363,7 +375,7 @@ const WorkerDashboardScreen = () => {
         <View style={styles.headerContent}>
           <View>
             <Text style={styles.greeting}>{t.greeting}</Text>
-            <Text style={styles.name}>{worker.name}</Text>
+            <Text style={styles.name}>{worker?.name || 'Worker'}</Text>
           </View>
           <View style={styles.headerButtons}>
             <TouchableOpacity
@@ -426,7 +438,7 @@ const WorkerDashboardScreen = () => {
                 colors={[COLORS.success + '10', COLORS.success + '20']}
                 style={styles.statCardGradient}
               >
-                <Text style={styles.statValue}>{worker.stats?.completedBookings || 0}</Text>
+                <Text style={styles.statValue}>{worker?.stats?.completedBookings || 0}</Text>
                 <Text style={styles.statLabel}>{t.jobsCompleted}</Text>
               </LinearGradient>
             </Card>
@@ -438,7 +450,7 @@ const WorkerDashboardScreen = () => {
                 colors={[COLORS.warning + '10', COLORS.warning + '20']}
                 style={styles.statCardGradient}
               >
-                <Text style={styles.statValue}>{worker.stats?.totalBookings || 0}</Text>
+                <Text style={styles.statValue}>{worker?.stats?.totalBookings || 0}</Text>
                 <Text style={styles.statLabel}>{t.totalBookings}</Text>
               </LinearGradient>
             </Card>
@@ -462,7 +474,7 @@ const WorkerDashboardScreen = () => {
           </View>
         </View>
 
-        {worker.services && worker.services.length > 0 && (
+        {worker?.services && worker.services.length > 0 && (
           <View style={styles.servicesSection}>
             <Text style={styles.sectionTitle}>Your Services</Text>
             <View style={styles.servicesList}>
@@ -479,7 +491,7 @@ const WorkerDashboardScreen = () => {
           <Text style={styles.sectionTitle}>
             {language === 'en' ? translations.en.jobRequests : translations.hi.jobRequests}
           </Text>
-          {assignedBookings.length > 0 ? (
+          {assignedBookings && assignedBookings.length > 0 ? (
             assignedBookings.map(job => renderJobCard(job))
           ) : (
             <Text style={styles.noJobsText}>

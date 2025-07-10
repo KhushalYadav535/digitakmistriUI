@@ -16,6 +16,7 @@ import { COLORS, FONTS, SHADOWS, SIZES } from '../../constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_URL } from '../constants/config';
+import { useAuth } from '../context/AuthContext';
 
 interface WorkerProfile {
   id: string;
@@ -34,6 +35,7 @@ interface WorkerProfile {
 const WorkerProfileScreen = () => {
   const [worker, setWorker] = React.useState<WorkerProfile | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const { logout } = useAuth();
 
   React.useEffect(() => {
     const fetchProfile = async () => {
@@ -67,10 +69,10 @@ const WorkerProfileScreen = () => {
   }, []);
 
   const handleLogout = React.useCallback(async () => {
-    await AsyncStorage.clear();
-    console.log('AsyncStorage cleared on logout');
-    router.replace('/(auth)/role-selection' as any);
-  }, []);
+    console.log('Worker profile logout initiated');
+    await logout();
+    // AuthContext will handle the redirect to role selection
+  }, [logout]);
 
   const renderContent = React.useCallback(() => {
     if (loading) return <View style={styles.container}><Text>Loading...</Text></View>;

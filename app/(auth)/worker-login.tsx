@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, Dimensions, TextInput, Image } from 'react-native';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -10,6 +9,7 @@ import { API_URL } from '../constants/config';
 import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import { useAuth } from '../context/AuthContext';
 
 const { width } = Dimensions.get('window');
 
@@ -19,6 +19,7 @@ const WorkerLoginScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const { login, isAuthenticated, user } = useAuth();
 
   const handleLogin = async () => {
     setError('');
@@ -31,17 +32,19 @@ const WorkerLoginScreen = () => {
       });
       console.log('Worker login response:', response.data);
       
-      if (response.data.worker) {
-        await AsyncStorage.setItem('worker', JSON.stringify(response.data.worker));
-      }
-      if (response.data.token) {
-        await AsyncStorage.setItem('token', response.data.token);
-        console.log('Worker token set:', response.data.token);
+      if (response.data.worker && response.data.token) {
+        // Use AuthContext to handle login
+        const userData = {
+          ...response.data.worker,
+          role: 'worker'
+        };
+        await login(response.data.token, userData);
+        console.log('Worker login completed');
+        // The AuthContext will handle the routing automatically
       } else {
-        console.log('No token received on worker login!');
-        throw new Error('No token received');
+        console.log('No token or worker data received on worker login!');
+        throw new Error('Invalid response from server');
       }
-      router.replace({ pathname: '/(worker)/dashboard' } as any);
     } catch (err: any) {
       console.error('Worker login error:', err.response?.data || err.message);
       setError(err.response?.data?.message || 'Network error. Please try again.');
@@ -49,6 +52,16 @@ const WorkerLoginScreen = () => {
       setIsLoading(false);
     }
   };
+
+  // Watch for authentication changes and redirect
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      console.log('Worker login screen detected authentication change, redirecting to:', user.role);
+      if (user.role === 'worker') {
+        router.replace('/(worker)/dashboard');
+      }
+    }
+  }, [isAuthenticated, user]);
 
   return (
     <View style={styles.container}>

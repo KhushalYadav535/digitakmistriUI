@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, ImageBackground, Dimensions, Alert, ScrollView, Image, TextInput } from 'react-native';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -10,6 +9,7 @@ import { API_URL } from '../constants/config';
 import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import { useAuth } from '../context/AuthContext';
 
 const { width } = Dimensions.get('window');
 
@@ -19,6 +19,7 @@ const LoginScreen = () => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const { login, isAuthenticated, user } = useAuth();
 
   const validateForm = () => {
     if (!email.trim()) {
@@ -62,37 +63,29 @@ const LoginScreen = () => {
 
       console.log('Login successful - User role:', user.role);
       
-      await AsyncStorage.clear();
-      await AsyncStorage.setItem('token', token);
-      await AsyncStorage.setItem('user', JSON.stringify(user));
-      console.log('Customer token set:', token);
-
-      const storedToken = await AsyncStorage.getItem('token');
-      const storedUser = await AsyncStorage.getItem('user');
-      console.log('Stored token:', storedToken);
-      console.log('Stored user:', storedUser);
-
-      if (!storedToken || !storedUser) {
-        throw new Error('Failed to store authentication data');
-      }
-
-      const parsedUser = JSON.parse(storedUser);
-      console.log('Parsed user data:', parsedUser);
-      console.log('User role from stored data:', parsedUser.role);
-
-      if (parsedUser.role === 'admin') {
-        console.log('Redirecting to admin panel');
-        router.replace('/(admin)' as any);
-      } else {
-        console.log('Redirecting to tabs');
-        router.replace('/(tabs)' as any);
-      }
+      // Use AuthContext to handle login
+      await login(token, user);
+      
+      console.log('Customer login completed, AuthContext updated');
+      
+      // The AuthContext will handle the routing automatically
+      // No need to manually redirect here
     } catch (error: any) {
       setError(error.response?.data?.message || 'Please check your credentials and try again');
     } finally {
       setLoading(false);
     }
   };
+
+  // Watch for authentication changes and redirect
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      console.log('Login screen detected authentication change, redirecting to:', user.role);
+      if (user.role === 'customer') {
+        router.replace('/(tabs)');
+      }
+    }
+  }, [isAuthenticated, user]);
 
   return (
     <View style={styles.container}>
@@ -149,6 +142,12 @@ const LoginScreen = () => {
           loading={loading}
           style={styles.button}
         />
+        <TouchableOpacity 
+          style={styles.forgotPasswordButton}
+          onPress={() => router.push('/forgot-password' as any)}
+        >
+          <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+        </TouchableOpacity>
         <TouchableOpacity 
           style={styles.registerButton}
           onPress={() => router.push('/(auth)/register' as any)}
@@ -262,6 +261,15 @@ const styles = StyleSheet.create({
     color: COLORS.error,
     marginLeft: SIZES.base,
     fontSize: FONTS.body3.fontSize,
+    fontWeight: '500',
+  },
+  forgotPasswordButton: {
+    marginTop: SIZES.medium,
+    alignItems: 'center',
+  },
+  forgotPasswordText: {
+    fontSize: FONTS.body3.fontSize,
+    color: COLORS.primary,
     fontWeight: '500',
   },
 });

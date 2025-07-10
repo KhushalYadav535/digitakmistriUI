@@ -16,6 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_URL } from '../constants/config';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
+import { getImageUrl } from '../utils/imageUtils';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 
@@ -368,7 +369,7 @@ const NearbyShopsScreen = () => {
                     <View key={shop._id} style={styles.shopCard}>
                         {shop.images.length > 0 && (
                             <Image
-                                source={{ uri: shop.images[0] }}
+                                source={{ uri: getImageUrl(shop.images[0]) }}
                                 style={styles.shopImage}
                             />
                         )}

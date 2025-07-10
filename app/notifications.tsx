@@ -1,252 +1,341 @@
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Card from '../components/Card';
-import { COLORS, FONTS, SHADOWS, SIZES } from '../constants/theme';
-import { socket } from './utils/api';
+import { COLORS } from './constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
-import { API_URL } from './constants/config';
+import { router } from 'expo-router';
+import { apiClient } from './utils/api';
 
 interface Notification {
-  id: string;
-  type: 'new_booking' | 'payment_received' | 'worker_registered' | 'job_completed';
+  _id: string;
+  userId: string;
+  type: string;
   title: string;
   message: string;
-  time: string;
-  read: boolean;
+  data?: any;
+  isRead: boolean;
+  createdAt: string;
 }
 
 const NotificationsScreen = () => {
-  const [notifications, setNotifications] = React.useState<Notification[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState('');
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  React.useEffect(() => {
-    let isMounted = true;
+  useEffect(() => {
     fetchNotifications();
-
-    // Connect socket and register user for real-time notifications
-    const setupSocket = async () => {
-      const userStr = await AsyncStorage.getItem('user');
-      if (userStr) {
-        const user = JSON.parse(userStr);
-        socket.connect();
-        socket.emit('register', { userId: user.id || user._id, role: user.role || 'customer' });
-        socket.on('notification', (notification) => {
-          setNotifications((prev) => {
-            // Avoid duplicate notifications by checking message+type+time
-            const exists = prev.some(
-              (n) => n.message === notification.message && n.type === notification.type && Math.abs(new Date(n.time).getTime() - Date.now()) < 1000
-            );
-            if (exists) return prev;
-            return [
-              {
-                id: Date.now().toString(),
-                type: notification.type,
-                title: notification.title || 'Notification',
-                message: notification.message,
-                time: new Date().toLocaleString(),
-                read: false,
-              },
-              ...prev,
-            ];
-          });
-        });
-      }
-    };
-    setupSocket();
-
-    // Cleanup on unmount
-    return () => {
-      isMounted = false;
-      socket.off('notification');
-      socket.disconnect();
-    };
   }, []);
 
   const fetchNotifications = async () => {
     try {
-      const token = await AsyncStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/notifications`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      setNotifications((prev) => {
-        // Merge API notifications with any real-time ones already in state
-        const apiNotifs = response.data.notifications || [];
-        const merged = [...apiNotifs, ...prev.filter(rt => !apiNotifs.some((an: Notification) => an.id === rt.id))];
-        return merged;
-      });
-    } catch (error: any) {
-      setError(error.response?.data?.message || 'Error fetching notifications');
+      setLoading(true);
+      const userStr = await AsyncStorage.getItem('user');
+      if (!userStr) return;
+
+      const user = JSON.parse(userStr);
+      const response: any = await apiClient.get(`/notifications/customer`);
+      
+      if (response && response.data) {
+        setNotifications(response.data.notifications || []);
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const getNotificationIcon = (type: Notification['type']) => {
-    switch (type) {
-      case 'new_booking':
-        return 'calendar';
-      case 'payment_received':
-        return 'cash';
-      case 'worker_registered':
-        return 'person-add';
-      case 'job_completed':
-        return 'checkmark-circle';
-      default:
-        return 'notifications';
+  const markAsRead = async (notificationId: string) => {
+    try {
+      const response: any = await apiClient.put(`/notifications/${notificationId}/read`);
+      
+      if (response && response.status === 200) {
+        setNotifications(prev => 
+          prev.map(notif => 
+            notif._id === notificationId ? { ...notif, isRead: true } : notif
+          )
+        );
+      }
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
     }
   };
 
-  const getNotificationColor = (type: Notification['type']) => {
-    switch (type) {
-      case 'new_booking':
-        return COLORS.primary;
-      case 'payment_received':
-        return COLORS.success;
-      case 'worker_registered':
-        return COLORS.warning;
-      case 'job_completed':
-        return COLORS.success;
-      default:
-        return COLORS.textSecondary;
+  const clearAllNotifications = async () => {
+    Alert.alert(
+      'Clear All Notifications',
+      'Are you sure you want to clear all notifications?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const userStr = await AsyncStorage.getItem('user');
+              if (!userStr) return;
+
+              const user = JSON.parse(userStr);
+              const response: any = await apiClient.delete(`/notifications/customer/${user._id}/clear-all`);
+              
+              if (response && response.status === 200) {
+                setNotifications([]);
+                Alert.alert('Success', 'All notifications cleared successfully');
+              } else {
+                Alert.alert('Error', 'Failed to clear notifications');
+              }
+            } catch (error) {
+              console.error('Error clearing notifications:', error);
+              Alert.alert('Error', 'Failed to clear notifications. Please try again.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleNotificationPress = async (notification: Notification) => {
+    try {
+      // Mark as read first
+      if (!notification.isRead) {
+        await markAsRead(notification._id);
+      }
+
+      // Navigate based on notification type
+      switch (notification.type) {
+        case 'booking_created':
+        case 'booking_assigned':
+        case 'booking_completed':
+        case 'booking_cancelled':
+          if (notification.data?.bookingId) {
+            router.push(`/booking-status/${notification.data.bookingId}`);
+          } else {
+            // If no bookingId, go to bookings list
+            router.push('/bookings');
+          }
+          break;
+        case 'payment_success':
+        case 'payment_failed':
+          router.push('/payment');
+          break;
+        case 'service_available':
+          router.push('/nearby-shops');
+          break;
+        case 'worker_assigned':
+          if (notification.data?.bookingId) {
+            router.push(`/booking-status/${notification.data.bookingId}`);
+          } else {
+            router.push('/bookings');
+          }
+          break;
+        default:
+          // For other notifications, just mark as read
+          console.log('Notification clicked:', notification.type);
+          break;
+      }
+    } catch (error) {
+      console.error('Error handling notification press:', error);
+      Alert.alert('Error', 'Failed to open notification. Please try again.');
     }
   };
+
+  const renderNotification = ({ item }: { item: Notification }) => (
+    <TouchableOpacity
+      style={[styles.notificationItem, !item.isRead && styles.unreadNotification]}
+      onPress={() => handleNotificationPress(item)}
+    >
+      <View style={styles.notificationIcon}>
+        <Ionicons 
+          name={getNotificationIcon(item.type)} 
+          size={24} 
+          color={getNotificationColor(item.type)} 
+        />
+      </View>
+      <View style={styles.notificationContent}>
+        <Text style={styles.notificationTitle}>{item.title}</Text>
+        <Text style={styles.notificationMessage}>{item.message}</Text>
+        <Text style={styles.notificationTime}>
+          {new Date(item.createdAt).toLocaleDateString('en-IN', {
+            day: 'numeric',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit'
+          })}
+        </Text>
+      </View>
+      {!item.isRead && <View style={styles.unreadDot} />}
+    </TouchableOpacity>
+  );
+
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case 'booking_created': return 'calendar';
+      case 'booking_assigned': return 'person';
+      case 'booking_completed': return 'checkmark-circle';
+      case 'booking_cancelled': return 'close-circle';
+      case 'payment_success': return 'card';
+      case 'payment_failed': return 'alert-circle';
+      default: return 'notifications';
+    }
+  };
+
+  const getNotificationColor = (type: string) => {
+    switch (type) {
+      case 'booking_created': return COLORS.primary;
+      case 'booking_assigned': return '#FF9500';
+      case 'booking_completed': return '#34C759';
+      case 'booking_cancelled': return '#FF3B30';
+      case 'payment_success': return '#34C759';
+      case 'payment_failed': return '#FF3B30';
+      default: return COLORS.primary;
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.centerContainer}>
+        <Text>Loading notifications...</Text>
+      </View>
+    );
+  }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
+        <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Notifications</Text>
-        <TouchableOpacity style={styles.clearButton}>
-          <Text style={styles.clearText}>Clear All</Text>
-        </TouchableOpacity>
+        {notifications.length > 0 && (
+          <TouchableOpacity onPress={clearAllNotifications}>
+            <Text style={styles.clearAllText}>Clear All</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      <View style={styles.content}>
-        {notifications.map((notification) => (
-          <Card
-            key={notification.id}
-            variant="elevated"
-            style={{
-              ...styles.notificationCard,
-              ...(notification.read ? {} : styles.unreadCard),
-            }}
-          >
-            <View style={styles.notificationHeader}>
-              <View style={styles.notificationIconContainer}>
-                <Ionicons
-                  name={getNotificationIcon(notification.type)}
-                  size={20}
-                  color={getNotificationColor(notification.type)}
-                />
-              </View>
-              <View style={styles.notificationInfo}>
-                <Text style={styles.notificationTitle}>
-                  {notification.title}
-                </Text>
-                <Text style={styles.notificationTime}>
-                  {notification.time}
-                </Text>
-              </View>
-              {!notification.read && (
-                <View style={styles.unreadBadge} />
-              )}
-            </View>
-            <Text style={styles.notificationMessage}>
-              {notification.message}
-            </Text>
-          </Card>
-        ))}
-      </View>
-    </ScrollView>
+      {notifications.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="notifications-off" size={64} color={COLORS.textSecondary} />
+          <Text style={styles.emptyTitle}>No Notifications</Text>
+          <Text style={styles.emptyMessage}>
+            You don't have any notifications yet. We'll notify you when something important happens.
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={notifications}
+          renderItem={renderNotification}
+          keyExtractor={(item) => item._id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContainer}
+        />
+      )}
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#F7F8FA',
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: SIZES.medium,
-    backgroundColor: COLORS.white,
-    ...SHADOWS.small,
-  },
-  backButton: {
-    padding: SIZES.base,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
   },
   headerTitle: {
-    fontSize: FONTS.h4.fontSize,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: 'bold',
     color: COLORS.textPrimary,
   },
-  clearButton: {
-    padding: SIZES.base,
-  },
-  clearText: {
-    fontSize: FONTS.body3.fontSize,
+  clearAllText: {
     color: COLORS.primary,
+    fontSize: 16,
     fontWeight: '600',
   },
-  content: {
-    padding: SIZES.medium,
-  },
-  notificationCard: {
-    marginBottom: SIZES.medium,
-  },
-  unreadCard: {
-    backgroundColor: `${COLORS.primary}05`,
-  },
-  notificationHeader: {
-    flexDirection: 'row',
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SIZES.base,
   },
-  notificationIconContainer: {
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: COLORS.textPrimary,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyMessage: {
+    fontSize: 16,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  listContainer: {
+    padding: 20,
+  },
+  notificationItem: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  unreadNotification: {
+    backgroundColor: '#F0F8FF',
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.primary,
+  },
+  notificationIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: `${COLORS.primary}10`,
+    backgroundColor: '#F1F1F1',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: SIZES.medium,
+    marginRight: 12,
   },
-  notificationInfo: {
+  notificationContent: {
     flex: 1,
   },
   notificationTitle: {
-    fontSize: FONTS.body3.fontSize,
+    fontSize: 16,
     fontWeight: '600',
     color: COLORS.textPrimary,
-    marginBottom: SIZES.base / 2,
+    marginBottom: 4,
+  },
+  notificationMessage: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    lineHeight: 20,
+    marginBottom: 8,
   },
   notificationTime: {
-    fontSize: FONTS.body4.fontSize,
+    fontSize: 12,
     color: COLORS.textSecondary,
   },
-  unreadBadge: {
+  unreadDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: COLORS.primary,
-  },
-  notificationMessage: {
-    fontSize: FONTS.body3.fontSize,
-    color: COLORS.textSecondary,
-    lineHeight: 20,
+    alignSelf: 'center',
   },
 });
 

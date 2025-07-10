@@ -10,6 +10,7 @@ import * as Location from 'expo-location';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../constants/config';
+import { getImageUrl } from '../utils/imageUtils';
 
 interface Shop {
   _id: string;
@@ -231,7 +232,7 @@ const TabLayout = () => {
                   >
                     <View style={styles.shopImageWrapper}>
                       {shop.images && shop.images.length > 0 ? (
-                        <Image source={{ uri: shop.images[0] }} style={styles.shopImage} />
+                        <Image source={{ uri: getImageUrl(shop.images[0]) }} style={styles.shopImage} />
                       ) : (
                         <View style={[styles.shopImage, styles.placeholderImage]}>
                           <Ionicons name="business" size={40} color={COLORS.textSecondary} />

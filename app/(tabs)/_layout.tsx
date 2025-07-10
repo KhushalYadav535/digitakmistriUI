@@ -1,8 +1,45 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { COLORS } from '../constants/theme';
+import { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import { API_URL } from '../constants/config';
 
 export default function TabLayout() {
+  const [notificationCount, setNotificationCount] = useState(0);
+
+  useEffect(() => {
+    const fetchNotificationCount = async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const userStr = await AsyncStorage.getItem('user');
+        
+        if (!token || !userStr) return;
+        
+        const user = JSON.parse(userStr);
+        const userModel = user.role === 'admin' ? 'Admin' : user.role === 'worker' ? 'Worker' : 'Customer';
+        
+        const response = await axios.get(`${API_URL}/notifications/unread-count?userModel=${userModel}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        
+        setNotificationCount(response.data.unreadCount || 0);
+      } catch (error) {
+        console.error('Error fetching notification count:', error);
+      }
+    };
+
+    fetchNotificationCount();
+    
+    // Refresh count every 30 seconds
+    const interval = setInterval(fetchNotificationCount, 30000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <Tabs
       screenOptions={{
@@ -66,12 +103,14 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="payment"
-        options={{
-          href: null,
-        }}
-      />
+      {/* Hide all other screens from tab bar */}
+      <Tabs.Screen name="payment" options={{ href: null }} />
+      <Tabs.Screen name="notifications" options={{ href: null }} />
+      <Tabs.Screen name="nearby-shops" options={{ href: null }} />
+      <Tabs.Screen name="service-details" options={{ href: null }} />
+      <Tabs.Screen name="booking" options={{ href: null }} />
+      <Tabs.Screen name="shop" options={{ href: null }} />
+      <Tabs.Screen name="booking-status" options={{ href: null }} />
     </Tabs>
   );
 } 

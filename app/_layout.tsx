@@ -1,6 +1,7 @@
 import { Stack } from "expo-router";
 import { COLORS } from "./constants/theme";
 import { LanguageProvider } from "./context/LanguageContext";
+import { AuthProvider } from "./context/AuthContext";
 
 // Define the route types
 declare global {
@@ -28,20 +29,22 @@ declare global {
 
 export default function RootLayout() {
   return (
-    <LanguageProvider>
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          header: () => null,
-          headerTitle: '',
-          headerBackVisible: false,
-          animation: 'none',
-          presentation: 'transparentModal',
-          contentStyle: {
-            backgroundColor: COLORS.background,
-          },
-        }}
-      />
-    </LanguageProvider>
+    <AuthProvider>
+      <LanguageProvider>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            header: () => null,
+            headerTitle: '',
+            headerBackVisible: false,
+            animation: 'none',
+            presentation: 'transparentModal',
+            contentStyle: {
+              backgroundColor: COLORS.background,
+            },
+          }}
+        />
+      </LanguageProvider>
+    </AuthProvider>
   );
 }

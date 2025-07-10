@@ -77,7 +77,7 @@ const PaymentScreen = () => {
         address: parsedBookingData.address,
         phone: parsedBookingData.phone,
         paymentMethod: paymentMethod,
-        amount: servicePrice,
+        amount: Number(servicePrice), // Ensure amount is a number
       };
 
       const response = await axios.post(`${API_URL}/bookings`, bookingPayload, {

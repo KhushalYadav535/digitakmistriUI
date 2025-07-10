@@ -151,14 +151,14 @@ const HelpSupportScreen = () => {
               <Ionicons name="call" size={24} color={COLORS.primary} />
               <View style={styles.emergencyInfo}>
                 <Text style={styles.emergencyLabel}>Phone</Text>
-                <Text style={styles.emergencyValue}>+1 234 567 8900</Text>
+                <Text style={styles.emergencyValue}>6307044134</Text>
               </View>
             </View>
             <View style={styles.emergencyItem}>
               <Ionicons name="mail" size={24} color={COLORS.primary} />
               <View style={styles.emergencyInfo}>
                 <Text style={styles.emergencyLabel}>Email</Text>
-                <Text style={styles.emergencyValue}>support@digitalmistri.com</Text>
+                <Text style={styles.emergencyValue}>digitalmistri33@gmail.com</Text>
               </View>
             </View>
           </View>

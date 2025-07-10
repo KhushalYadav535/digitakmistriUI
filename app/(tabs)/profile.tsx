@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
+import { API_URL } from '../constants/config';
+import { useAuth } from '../context/AuthContext';
 
 const menuItems = [
+  { id: 'notifications', title: 'Notifications', icon: 'notifications', route: '/notifications' },
   { id: 'edit', title: 'Edit Profile', icon: 'pencil', route: '/edit-profile' },
   { id: 'change', title: 'Change Password', icon: 'lock-closed', route: '/change-password' },
   { id: 'help', title: 'Help & Support', icon: 'help-circle', route: '/help-support' },
@@ -14,21 +16,101 @@ const menuItems = [
 
 const ProfileScreen = () => {
   const [user, setUser] = useState<any>(null);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [customerStats, setCustomerStats] = useState({
+    totalBookings: 0,
+    averageRating: 0,
+    totalSpent: 0
+  });
+  const [loading, setLoading] = useState(true);
+  const { logout, token, user: authUser } = useAuth();
 
   useEffect(() => {
-    const fetchUser = async () => {
+    const fetchUserData = async () => {
       try {
-        const userStr = await AsyncStorage.getItem('user');
-        if (userStr) setUser(JSON.parse(userStr));
-      } catch (e) {}
+        setLoading(true);
+        if (authUser) {
+          setUser(authUser);
+          
+          // Fetch detailed customer profile from backend
+          if (token) {
+            const response = await fetch(`${API_URL}/customer/profile`, {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+            
+            if (response.ok) {
+              const customerData = await response.json();
+              setUser(customerData);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      } finally {
+        setLoading(false);
+      }
     };
-    fetchUser();
-  }, []);
+    fetchUserData();
+  }, [token, authUser]);
+
+  useEffect(() => {
+    const fetchNotificationCount = async () => {
+      try {
+        if (!token || !authUser || !authUser.id) return;
+
+        const response = await fetch(`${API_URL}/notifications/customer/${authUser.id}/count`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setNotificationCount(data.count || 0);
+        }
+      } catch (error) {
+        console.error('Error fetching notification count:', error);
+      }
+    };
+
+    fetchNotificationCount();
+  }, [token, authUser]);
+
+  useEffect(() => {
+    const fetchCustomerStats = async () => {
+      try {
+        if (!token || !authUser || !authUser.id) return;
+
+        // Fetch customer statistics
+        const response = await fetch(`${API_URL}/customer/stats`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.ok) {
+          const stats = await response.json();
+          setCustomerStats({
+            totalBookings: stats.totalBookings || 0,
+            averageRating: stats.averageRating || 0,
+            totalSpent: stats.totalSpent || 0
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching customer stats:', error);
+      }
+    };
+
+    fetchCustomerStats();
+  }, [token, authUser]);
 
   const handleLogout = async () => {
     try {
-      await AsyncStorage.multiRemove(['token', 'user']);
-      router.replace('/(auth)/role-selection' as any);
+      console.log('Customer profile logout initiated');
+      await logout();
+      // AuthContext will handle the redirect to role selection
     } catch (error) {
       console.error('Error during logout:', error);
     }
@@ -41,6 +123,14 @@ const ProfileScreen = () => {
       router.push(item.route);
     }
   };
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F7F8FA' }}>
+        <Text style={{ fontSize: 16, color: COLORS.textSecondary }}>Loading profile...</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: '#F7F8FA' }} showsVerticalScrollIndicator={false}>
@@ -59,18 +149,30 @@ const ProfileScreen = () => {
       </View>
       <View style={styles.statsRow}>
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>12</Text>
+          <Text style={styles.statNumber}>{customerStats.totalBookings}</Text>
           <Text style={styles.statLabel}>Bookings</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>4.8</Text>
+          <Text style={styles.statNumber}>{customerStats.averageRating.toFixed(1)}</Text>
           <Text style={styles.statLabel}>Rating</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>₹2.5k</Text>
+          <Text style={styles.statNumber}>₹{customerStats.totalSpent.toLocaleString()}</Text>
           <Text style={styles.statLabel}>Spent</Text>
         </View>
       </View>
+      <View style={styles.emergencyContactCard}>
+        <Text style={styles.emergencyTitle}>Emergency Contact</Text>
+        <View style={styles.contactItem}>
+          <Ionicons name="call-outline" size={20} color={COLORS.primary} />
+          <Text style={styles.contactText}>6307044134</Text>
+        </View>
+        <View style={styles.contactItem}>
+          <Ionicons name="mail-outline" size={20} color={COLORS.primary} />
+          <Text style={styles.contactText}>digitalmistri33@gmail.com</Text>
+        </View>
+      </View>
+      
       <View style={styles.menuContainer}>
         {menuItems.map((item) => (
           <TouchableOpacity
@@ -87,6 +189,11 @@ const ProfileScreen = () => {
               <Text style={[styles.menuItemText, item.id === 'logout' && styles.logoutText]}>
                 {item.title}
               </Text>
+              {item.id === 'notifications' && notificationCount > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{notificationCount}</Text>
+                </View>
+              )}
             </View>
             <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
@@ -222,6 +329,50 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     color: '#FF3B30',
+  },
+  badge: {
+    backgroundColor: '#FF3B30',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  emergencyContactCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    marginHorizontal: 20,
+    marginTop: 18,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  emergencyTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.textPrimary,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingVertical: 8,
+  },
+  contactText: {
+    fontSize: 16,
+    color: COLORS.textPrimary,
+    marginLeft: 12,
+    fontWeight: '500',
   },
 });
 

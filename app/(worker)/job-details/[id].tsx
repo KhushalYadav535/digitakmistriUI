@@ -204,11 +204,21 @@ const JobDetailsScreen = () => {
     setOtpSuccess('');
     try {
       const token = await AsyncStorage.getItem('token');
-      await axios.put(`${API_URL}/bookings/${id}/request-completion`, {}, {
+      const response = await axios.put(`${API_URL}/bookings/${id}/request-completion`, {}, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      setOtpSuccess('OTP sent to customer email.');
+      
+      // Handle different response formats
+      if (response.data.emailConfigured === false) {
+        // Email not configured - show OTP in success message
+        setOtpSuccess(`OTP generated: ${response.data.otp}. Email not configured.`);
+        console.log('Generated OTP:', response.data.otp);
+      } else {
+        // Email configured and sent
+        setOtpSuccess('OTP sent to customer email.');
+      }
     } catch (err: any) {
+      console.error('Request completion error:', err.response?.data || err.message);
       setOtpError(err.response?.data?.message || 'Failed to request completion');
     } finally {
       setOtpLoading(false);
@@ -231,6 +241,8 @@ const JobDetailsScreen = () => {
         setOtpModalVisible(false);
         setOtp('');
         setOtpSuccess('');
+        // Navigate to worker dashboard after completion
+        router.replace('/(worker)/dashboard');
       }, 1200);
       Alert.alert('Success', 'Job completed successfully!');
     } catch (err: any) {
@@ -302,11 +314,11 @@ const JobDetailsScreen = () => {
           <Text style={styles.sectionTitle}>Customer Details</Text>
           <View style={styles.detailRow}>
             <Text style={styles.label}>Name:</Text>
-            <Text style={styles.value}>{job.customer.name}</Text>
+            <Text style={styles.value}>{job.customer?.name || '-'}</Text>
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.label}>Phone:</Text>
-            <Text style={styles.value}>{job.customer.phone}</Text>
+            <Text style={styles.value}>{job.customer?.phone || '-'}</Text>
           </View>
         </View>
 
@@ -315,7 +327,7 @@ const JobDetailsScreen = () => {
           <View style={styles.detailRow}>
             <Text style={styles.label}>Address:</Text>
             <Text style={styles.value}>
-              {job.address.street}, {job.address.city}, {job.address.state} - {job.address.pincode}
+              {job.address?.street || ''}, {job.address?.city || ''}, {job.address?.state || ''} - {job.address?.pincode || ''}
             </Text>
           </View>
           <View style={styles.detailRow}>

@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_URL } from '../constants/config';
 import { socket } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 
 const settings = [
   {
@@ -37,6 +38,7 @@ const AdminProfileScreen = () => {
   const [password, setPassword] = useState('');
   const [success, setSuccess] = useState('');
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
+  const { logout } = useAuth();
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -130,8 +132,9 @@ const AdminProfileScreen = () => {
 
   const handleLogout = async () => {
     try {
-      await AsyncStorage.multiRemove(['token', 'user']);
-      router.replace('/(auth)/role-selection' as any);
+      console.log('Admin profile logout initiated');
+      await logout();
+      // AuthContext will handle the redirect to role selection
     } catch (error) {
       console.error('Logout error:', error);
       Alert.alert('Error', 'Failed to logout. Please try again.');
@@ -141,21 +144,47 @@ const AdminProfileScreen = () => {
   const fetchNotifications = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/notifications`, {
+      const response = await axios.get(`${API_URL}/notifications/admin`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
-      setNotifications((prev) => {
-        // Merge API notifications with any real-time ones already in state
-        const apiNotifs = response.data.notifications || [];
-        const merged = [...apiNotifs, ...prev.filter(rt => !apiNotifs.some((an: AdminNotification) => an.id === rt.id))];
-        return merged;
-      });
+      
+      const apiNotifs = response.data.notifications || [];
+      const formattedNotifications = apiNotifs.map((notif: any) => ({
+        id: notif._id,
+        type: notif.type,
+        title: getNotificationTitle(notif.type),
+        message: notif.message,
+        time: new Date(notif.createdAt).toLocaleString(),
+        read: notif.read || false,
+      }));
+      
+      setNotifications(formattedNotifications);
     } catch (error: any) {
+      console.error('Error fetching notifications:', error);
       setError(error.response?.data?.message || 'Error fetching notifications');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getNotificationTitle = (type: string) => {
+    switch (type) {
+      case 'new_booking_available':
+        return 'New Booking Available';
+      case 'worker_assigned':
+        return 'Worker Assigned';
+      case 'booking_assigned':
+        return 'Booking Assigned';
+      case 'booking_rejected':
+        return 'Booking Rejected';
+      case 'booking_completed':
+        return 'Booking Completed';
+      case 'booking_cancelled':
+        return 'Booking Cancelled';
+      default:
+        return 'Notification';
     }
   };
 
@@ -268,7 +297,7 @@ const AdminProfileScreen = () => {
         <Card variant="flat" style={styles.infoCard}>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Version</Text>
-            <Text style={styles.infoValue}>1.0.0</Text>
+            <Text style={styles.infoValue}>1.0.6</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Build Number</Text>

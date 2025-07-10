@@ -287,6 +287,7 @@ const WorkerJobsScreen = () => {
 
   const renderJobCard = (job: Job) => {
     const address = job.address || {};
+    const normalizedStatus = job.status.toLowerCase().replace('_', ' ');
     return (
       <Card key={job._id} variant="elevated" style={Array.isArray(styles.jobCard) ? styles.jobCard : [styles.jobCard]}>
         <View style={styles.jobHeader}>
@@ -295,7 +296,7 @@ const WorkerJobsScreen = () => {
             <Text style={styles.customerName}>{job.customer?.name || 'Customer'}</Text>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: getStatusColor(job.status) }]}>
-            <Text style={styles.statusText}>{job.status}</Text>
+            <Text style={styles.statusText}>{job.status.charAt(0).toUpperCase() + job.status.slice(1).replace('_', ' ')}</Text>
           </View>
         </View>
 
@@ -319,7 +320,7 @@ const WorkerJobsScreen = () => {
         </View>
 
         <View style={styles.jobActions}>
-          {job.status === 'pending' && (
+          {normalizedStatus === 'pending' && (
             <>
               <Button
                 title="Accept"
@@ -335,7 +336,7 @@ const WorkerJobsScreen = () => {
               />
             </>
           )}
-          {job.status === 'accepted' && (
+          {normalizedStatus === 'accepted' && (
             <Button
               title="Start Job"
               onPress={() => handleStart(job._id)}

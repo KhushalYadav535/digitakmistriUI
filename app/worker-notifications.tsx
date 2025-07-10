@@ -81,18 +81,16 @@ const WorkerNotificationsScreen = () => {
   const fetchNotifications = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/notifications`, {
+      const response = await axios.get(`${API_URL}/notifications/worker`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
-      setNotifications((prev) => {
-        // Merge API notifications with any real-time ones already in state
-        const apiNotifs = response.data.notifications || [];
-        const merged = [...apiNotifs, ...prev.filter(rt => !apiNotifs.some((an: Notification) => an._id === rt._id))];
-        return merged;
-      });
+      
+      const apiNotifs = response.data.notifications || [];
+      setNotifications(apiNotifs);
     } catch (error: any) {
+      console.error('Error fetching notifications:', error);
       setError(error.response?.data?.message || 'Error fetching notifications');
       Alert.alert('Error', 'Failed to load notifications');
     } finally {

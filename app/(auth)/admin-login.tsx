@@ -1,12 +1,12 @@
 import { router } from 'expo-router';
 import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, TextInput, View, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Button from '../components/Button';
 import { COLORS, FONTS, SIZES } from '../constants/theme';
 import { API_URL } from '../constants/config';
+import { useAuth } from '../context/AuthContext';
 
 const ADMIN_EMAIL = 'digitalmistri33@gmail.com';
 const ADMIN_PASSWORD = 'Anubhav@2025';
@@ -17,6 +17,7 @@ const AdminLoginScreen = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const { login, isAuthenticated, user } = useAuth();
 
   const handleLogin = async () => {
     setError('');
@@ -84,27 +85,13 @@ const AdminLoginScreen = () => {
         throw new Error('Invalid response format from server');
       }
       
-      // Save token and user info
+      // Use AuthContext to handle login
       console.log('=== Saving Auth Data ===');
-      await AsyncStorage.clear();
-      await AsyncStorage.setItem('token', response.data.token);
-      await AsyncStorage.setItem('user', JSON.stringify(response.data.admin));
-      
-      // Verify stored data
-      const storedToken = await AsyncStorage.getItem('token');
-      const storedUser = await AsyncStorage.getItem('user');
-      console.log('Stored token:', storedToken);
-      console.log('Stored user:', storedUser);
-      
-      if (!storedToken || !storedUser) {
-        throw new Error('Failed to store authentication data');
-      }
+      await login(response.data.token, response.data.admin);
       
       setLoading(false);
       console.log('=== Login Successful ===');
-      router.replace({
-        pathname: "/(admin)/dashboard"
-      } as any);
+      // The AuthContext will handle the routing automatically
     } catch (err: any) {
       console.error('=== Login Error ===');
       console.error('Error object:', err);
@@ -124,6 +111,16 @@ const AdminLoginScreen = () => {
       setLoading(false);
     }
   };
+
+  // Watch for authentication changes and redirect
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      console.log('Admin login screen detected authentication change, redirecting to:', user.role);
+      if (user.role === 'admin') {
+        router.replace('/(admin)/dashboard');
+      }
+    }
+  }, [isAuthenticated, user]);
 
   return (
     <View style={styles.container}>
