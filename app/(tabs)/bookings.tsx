@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios, { AxiosError } from 'axios';
 import { API_URL } from '../constants/config';
@@ -58,12 +59,9 @@ const getStatusText = (status: BookingStatus): string => {
 };
 
 const BookingsScreen = () => {
-  const [activeTab, setActiveTab] = useState('bookings');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [notifLoading, setNotifLoading] = useState(false);
   const router = useRouter();
 
   const loadBookings = async () => {
@@ -89,32 +87,14 @@ const BookingsScreen = () => {
     }
   };
 
-  const loadNotifications = async () => {
-    try {
-      setNotifLoading(true);
-      const token = await AsyncStorage.getItem('token');
-      if (!token) throw new Error('No token found');
-      const response = await axios.get(`${API_URL}/notifications/customer`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setNotifications(response.data);
-    } catch (error) {
-      setNotifications([]);
-    } finally {
-      setNotifLoading(false);
-    }
-  };
-
   useEffect(() => {
     loadBookings();
   }, []);
 
   useFocusEffect(
     React.useCallback(() => {
-      if (activeTab === 'bookings') {
-        loadBookings();
-      }
-    }, [activeTab])
+      loadBookings();
+    }, [])
   );
 
   const handleBooking = async (bookingData: {
@@ -129,6 +109,7 @@ const BookingsScreen = () => {
       pincode: string;
     };
     phone: string;
+    amount: number;
   }) => {
     try {
       setIsLoading(true);
@@ -148,6 +129,7 @@ const BookingsScreen = () => {
           bookingTime: bookingData.time,
           address: bookingData.address,
           phone: bookingData.phone,
+          amount: bookingData.amount,
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -194,6 +176,13 @@ const BookingsScreen = () => {
     ]);
   };
 
+  const handleViewDetails = (bookingId: string) => {
+    router.push({
+      pathname: '/(tabs)/booking-status/[id]' as any,
+      params: { id: bookingId }
+    });
+  };
+
   const renderBookingCard = ({ item }: { item: Booking }) => {
     const formatAddress = (address: Booking['address']) => {
       if (!address) return 'Address not available';
@@ -225,6 +214,9 @@ const BookingsScreen = () => {
               <Text style={styles.cancelButtonText}>Cancel Booking</Text>
             </TouchableOpacity>
           )}
+          <TouchableOpacity style={styles.viewDetailsButton} onPress={() => handleViewDetails(item._id)}>
+            <Text style={styles.viewDetailsButtonText}>View Details</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -232,100 +224,46 @@ const BookingsScreen = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.tabBar}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'bookings' && styles.activeTab]}
-          onPress={() => setActiveTab('bookings')}
-        >
-          <Ionicons name="calendar" size={24} color={activeTab === 'bookings' ? COLORS.primary : '#666'} />
-          <Text style={[styles.tabText, activeTab === 'bookings' && styles.tabTextActive]}>Bookings</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'notifications' && styles.activeTab]}
-          onPress={() => setActiveTab('notifications')}
-        >
-          <Ionicons name="notifications" size={24} color={activeTab === 'notifications' ? COLORS.primary : '#666'} />
-          <Text style={[styles.tabText, activeTab === 'notifications' && styles.tabTextActive]}>Notifications</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'profile' && styles.activeTab]}
-          onPress={() => setActiveTab('profile')}
-        >
-          <Ionicons name="person" size={24} color={activeTab === 'profile' ? COLORS.primary : '#666'} />
-          <Text style={[styles.tabText, activeTab === 'profile' && styles.tabTextActive]}>Profile</Text>
-        </TouchableOpacity>
-      </View>
-
-      {activeTab === 'bookings' ? (
-        <View style={styles.content}>
-          <View style={styles.bookingForm}>
-            <Text style={styles.sectionTitle}>Book a Service</Text>
-            <BookingForm
-              onSubmit={handleBooking}
-              isLoading={isLoading}
-            />
-          </View>
-
-          <View style={styles.bookingsList}>
-            <Text style={styles.sectionTitle}>Your Bookings</Text>
-            
-            {isLoading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
-                <Text style={styles.loadingText}>Loading bookings...</Text>
-              </View>
-            ) : error ? (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
-                <TouchableOpacity style={styles.retryButton} onPress={loadBookings}>
-                  <Text style={styles.retryButtonText}>Retry</Text>
-                </TouchableOpacity>
-              </View>
-            ) : bookings.length > 0 ? (
-              <FlatList
-                data={bookings}
-                keyExtractor={item => item._id}
-                renderItem={renderBookingCard}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.flatListContent}
-              />
-            ) : (
-              <View style={styles.emptyState}>
-                <Ionicons name="book-outline" size={48} color="#666" />
-                <Text style={styles.emptyStateText}>No bookings yet</Text>
-              </View>
-            )}
-          </View>
+      <View style={styles.content}>
+        <View style={styles.bookingForm}>
+          <Text style={styles.sectionTitle}>Book a Service</Text>
+          <BookingForm
+            onSubmit={handleBooking}
+            isLoading={isLoading}
+          />
         </View>
-      ) : activeTab === 'notifications' ? (
-        <View style={styles.notificationsContainer}>
-          {notifLoading ? (
-            <ActivityIndicator size="large" color={COLORS.primary} />
-          ) : notifications.length > 0 ? (
+
+        <View style={styles.bookingsList}>
+          <Text style={styles.sectionTitle}>Your Bookings</Text>
+          
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+              <Text style={styles.loadingText}>Loading bookings...</Text>
+            </View>
+          ) : error ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+              <TouchableOpacity style={styles.retryButton} onPress={loadBookings}>
+                <Text style={styles.retryButtonText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : bookings.length > 0 ? (
             <FlatList
-              data={notifications}
+              data={bookings}
               keyExtractor={item => item._id}
-              renderItem={({ item }) => (
-                <View style={styles.notificationCard}>
-                  <Text style={styles.notificationMessage}>{item.message}</Text>
-                  <Text style={styles.notificationDate}>{new Date(item.createdAt).toLocaleString()}</Text>
-                </View>
-              )}
+              renderItem={renderBookingCard}
+              showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.flatListContent}
             />
           ) : (
             <View style={styles.emptyState}>
-              <Ionicons name="notifications-off" size={48} color="#666" />
-              <Text style={styles.emptyStateText}>No notifications yet</Text>
+              <Ionicons name="book-outline" size={48} color="#666" />
+              <Text style={styles.emptyStateText}>No bookings yet</Text>
             </View>
           )}
         </View>
-      ) : (
-        <View style={styles.profileContainer}>
-          <Ionicons name="person-outline" size={48} color="#666" />
-          <Text style={styles.comingSoon}>Profile coming soon...</Text>
-        </View>
-      )}
+      </View>
     </View>
   );
 };
@@ -334,29 +272,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-  },
-  tabBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  tab: {
-    alignItems: 'center',
-    paddingVertical: 5,
-  },
-  activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: COLORS.primary,
-  },
-  tabText: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
-  },
-  tabTextActive: {
-    color: COLORS.primary,
   },
   content: {
     flex: 1,
@@ -414,17 +329,6 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   emptyStateText: {
-    marginTop: 10,
-    color: COLORS.textSecondary,
-    fontSize: 16,
-  },
-  profileContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  comingSoon: {
     marginTop: 10,
     color: COLORS.textSecondary,
     fontSize: 16,
@@ -502,28 +406,16 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
   },
-  notificationsContainer: {
-    flex: 1,
-    padding: 16,
+  viewDetailsButton: {
+    marginTop: 10,
+    backgroundColor: COLORS.info,
+    padding: 8,
+    borderRadius: 6,
+    alignItems: 'center',
   },
-  notificationCard: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 14,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  notificationMessage: {
-    fontSize: 15,
-    color: COLORS.textPrimary,
-    marginBottom: 4,
-  },
-  notificationDate: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
+  viewDetailsButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
 });
 

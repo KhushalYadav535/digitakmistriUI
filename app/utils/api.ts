@@ -43,10 +43,10 @@ class ApiClient {
       }
     );
 
-    // Response interceptor
-    this.client.interceptors.response.use(
-      (response) => response,
-      async (error: AxiosError<ErrorResponse>) => {
+      // Response interceptor
+  this.client.interceptors.response.use(
+    (response) => response.data, // Return only the data
+    async (error: AxiosError<ErrorResponse>) => {
         if (this.shouldRetry(error) && this.retryCount < API_CONFIG.retryAttempts) {
           this.retryCount++;
           console.log(`Retrying request (${this.retryCount}/${API_CONFIG.retryAttempts})...`);

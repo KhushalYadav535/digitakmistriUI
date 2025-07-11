@@ -86,6 +86,7 @@ interface Worker {
   services: string[];
   isAvailable: boolean;
   assignedBookings: any[];
+  completedBookings: any[];
   stats: {
     totalBookings: number;
     completedBookings: number;
@@ -105,6 +106,7 @@ const WorkerDashboardScreen = () => {
   const [earningsPeriod, setEarningsPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const [worker, setWorker] = useState<Worker | null>(null);
   const [assignedBookings, setAssignedBookings] = useState<any[]>([]);
+  const [completedBookings, setCompletedBookings] = useState<any[]>([]);
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -115,9 +117,15 @@ const WorkerDashboardScreen = () => {
     const response = await apiClient.get<Worker>('/worker/dashboard', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
+    
+    console.log('Dashboard response:', JSON.stringify(response, null, 2));
+    console.log('Completed bookings:', response.completedBookings);
+    console.log('Response keys:', Object.keys(response));
+    
     setWorker(response);
     setAvailable(response.isAvailable || false);
     setAssignedBookings(response.assignedBookings || []);
+    setCompletedBookings(response.completedBookings || []);
     return response;
   });
 
@@ -265,31 +273,47 @@ const WorkerDashboardScreen = () => {
 
   const renderJobActions = (job: any) => (
     <View style={styles.actionButtons}>
-      {job.status === 'pending' && (
+      {job.status === 'Worker Assigned' && (
         <Button
           title="Start"
           onPress={() => handleJobAction(job._id, 'start')}
           variant="success"
         />
       )}
-      {job.status === 'in_progress' && (
+      {job.status === 'In Progress' && (
         <Button
           title="Complete"
           onPress={() => handleJobAction(job._id, 'complete')}
           variant="success"
         />
       )}
-      {['pending', 'in_progress'].includes(job.status) && (
+      {['Worker Assigned', 'Accepted', 'In Progress'].includes(job.status) && (
         <Button
           title="Cancel"
           onPress={() => handleJobAction(job._id, 'cancel')}
           variant="danger"
         />
       )}
+      {job.status !== 'Completed' && (
+        <Button
+          title="View Details"
+          onPress={() => handleJobAction(job._id, 'view')}
+          variant="primary"
+        />
+      )}
+      {job.status === 'Completed' && (
+        <Button
+          title="View Details"
+          onPress={() => handleJobAction(job._id, 'view')}
+          variant="secondary"
+        />
+      )}
     </View>
   );
 
   const renderJobCard = (job: any) => {
+    console.log('Rendering job card:', job);
+    
     const formatAddress = (address: any) => {
       if (typeof address === 'string') return address;
       if (address && typeof address === 'object') {
@@ -301,7 +325,7 @@ const WorkerDashboardScreen = () => {
     return (
       <Card key={job._id} style={styles.jobCard}>
         <View style={styles.jobHeader}>
-          <Text style={styles.jobTitle}>{job.serviceTitle || job.service}</Text>
+          <Text style={styles.jobTitle}>{job.serviceTitle || job.serviceType || job.service || 'Unknown Service'}</Text>
           <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(job.status)}20` }]}>
             <Text style={[styles.statusText, { color: getStatusColor(job.status) }]}>
               {job.status}
@@ -317,7 +341,7 @@ const WorkerDashboardScreen = () => {
             Address: {formatAddress(job.address)}
           </Text>
           <Text style={styles.jobDateTime}>
-            {new Date(job.bookingDate).toLocaleDateString()} at {job.bookingTime}
+            {new Date(job.bookingDate || job.createdAt).toLocaleDateString()} at {job.bookingTime || 'N/A'}
           </Text>
         </View>
 
@@ -489,13 +513,29 @@ const WorkerDashboardScreen = () => {
 
         <View style={styles.jobRequestsSection}>
           <Text style={styles.sectionTitle}>
-            {language === 'en' ? translations.en.jobRequests : translations.hi.jobRequests}
+            {language === 'en' ? 'Active Jobs' : 'सक्रिय काम'}
           </Text>
           {assignedBookings && assignedBookings.length > 0 ? (
             assignedBookings.map(job => renderJobCard(job))
           ) : (
             <Text style={styles.noJobsText}>
-              {language === 'en' ? 'No job requests at the moment' : 'फिलहाल कोई काम का अनुरोध नहीं है'}
+              {language === 'en' ? 'No active jobs at the moment' : 'फिलहाल कोई सक्रिय काम नहीं है'}
+            </Text>
+          )}
+        </View>
+
+        <View style={styles.jobRequestsSection}>
+          <Text style={styles.sectionTitle}>
+            {language === 'en' ? 'Completed Jobs' : 'पूरे किए गए काम'} ({completedBookings?.length || 0})
+          </Text>
+          <Text style={{ color: 'red', fontSize: 12, marginBottom: 10 }}>
+            Debug: Worker stats show {worker?.stats?.completedBookings || 0} completed
+          </Text>
+          {completedBookings && completedBookings.length > 0 ? (
+            completedBookings.map(job => renderJobCard(job))
+          ) : (
+            <Text style={styles.noJobsText}>
+              {language === 'en' ? 'No completed jobs yet' : 'अभी तक कोई काम पूरा नहीं हुआ'}
             </Text>
           )}
         </View>
@@ -523,12 +563,20 @@ const WorkerDashboardScreen = () => {
 
 const getStatusColor = (status: string) => {
   switch (status) {
+    case 'Pending':
+      return '#FF9800';
     case 'Worker Assigned':
       return '#2196F3';
     case 'Accepted':
       return '#4CAF50';
     case 'In Progress':
       return '#FF9800';
+    case 'Completed':
+      return '#4CAF50';
+    case 'Cancelled':
+      return '#F44336';
+    case 'Rejected':
+      return '#F44336';
     default:
       return '#757575';
   }

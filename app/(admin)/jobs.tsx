@@ -14,6 +14,20 @@ interface Job {
   details?: string;
   createdAt: string;
   acceptedAt?: string;
+  booking?: any;
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  Pending: '#FFA500', // orange
+  Accepted: '#4CAF50', // green
+  'In Progress': '#2196F3', // blue
+  Completed: '#1976D2', // darker blue
+  Rejected: '#F44336', // red
+  Cancelled: '#F44336', // red
+};
+
+function getStatusColor(status: string) {
+  return STATUS_COLORS[status] || '#AAA';
 }
 
 const AdminJobsScreen = () => {
@@ -43,15 +57,49 @@ const AdminJobsScreen = () => {
       <Text style={styles.header}>All Bookings / Jobs</Text>
       {loading && <ActivityIndicator color={COLORS.primary} size="large" style={{marginTop: 20}} />}
       {jobs.map(job => (
-        <Card key={job._id} variant="elevated" style={styles.jobCard}>
-          <Text style={styles.label}>Service: <Text style={styles.value}>{job.service}</Text></Text>
+        <View key={job._id} style={[styles.cleanCard, { borderLeftColor: COLORS.primary }]}>
+          <View style={styles.rowBetween}>
+            <Text style={styles.label}>Service: <Text style={styles.value}>{job.service}</Text></Text>
+            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(job.status) }]}>
+              <Text style={styles.statusText}>{job.status}</Text>
+            </View>
+          </View>
           <Text style={styles.label}>Customer: <Text style={styles.value}>{job.customer?.name || job.customer}</Text></Text>
-          <Text style={styles.label}>Assigned Worker: <Text style={styles.value}>{job.assignedWorker?.name || '-'}</Text></Text>
-          <Text style={styles.label}>Status: <Text style={styles.value}>{job.status}</Text></Text>
-          <Text style={styles.label}>Details: <Text style={styles.value}>{job.details || '-'}</Text></Text>
+          <Text style={styles.label}>Assigned Worker: <Text style={styles.value}>{
+            job.assignedWorker
+              ? (typeof job.assignedWorker === 'object' && (job.assignedWorker as any).name
+                  ? (job.assignedWorker as any).name
+                  : typeof job.assignedWorker === 'string'
+                    ? job.assignedWorker
+                    : '-')
+              : '-'
+          }</Text></Text>
+          {/* Details section */}
+          {job.details && typeof job.details === 'object' ? (
+            <>
+              <Text style={styles.label}>Service Title: <Text style={styles.value}>{(job.details as any).serviceTitle || '-'}</Text></Text>
+              <Text style={styles.label}>Date: <Text style={styles.value}>{(job.details as any).date || '-'}</Text></Text>
+              <Text style={styles.label}>Time: <Text style={styles.value}>{(job.details as any).time || '-'}</Text></Text>
+              <Text style={styles.label}>Address: <Text style={styles.value}>{(job.details as any).address ? `${(job.details as any).address.street}, ${(job.details as any).address.city}, ${(job.details as any).address.state} - ${(job.details as any).address.pincode}` : '-'}</Text></Text>
+              <Text style={styles.label}>Phone: <Text style={styles.value}>{(job.details as any).phone || '-'}</Text></Text>
+            </>
+          ) : (
+            <Text style={styles.label}>Details: <Text style={styles.value}>{job.details || '-'}</Text></Text>
+          )}
+          {job.booking && (
+            <>
+              <Text style={styles.label}>Booking Date: <Text style={styles.value}>{job.booking.bookingDate ? new Date(job.booking.bookingDate).toLocaleDateString() : '-'}</Text></Text>
+              <Text style={styles.label}>Booking Time: <Text style={styles.value}>{job.booking.bookingTime || '-'}</Text></Text>
+              <Text style={styles.label}>Amount: <Text style={styles.amountValue}>
+                ₹{(job.booking && job.booking.amount)
+                  ? job.booking.amount
+                  : (job.details && typeof job.details === 'object' && (job.details as any).amount ? (job.details as any).amount : '-')}
+              </Text></Text>
+            </>
+          )}
           <Text style={styles.label}>Created At: <Text style={styles.value}>{new Date(job.createdAt).toLocaleString()}</Text></Text>
           {job.acceptedAt && <Text style={styles.label}>Accepted At: <Text style={styles.value}>{new Date(job.acceptedAt).toLocaleString()}</Text></Text>}
-        </Card>
+        </View>
       ))}
       {!loading && jobs.length === 0 && <Text style={styles.noJobs}>No jobs found.</Text>}
     </ScrollView>
@@ -59,12 +107,34 @@ const AdminJobsScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background, padding: SIZES.medium },
+  container: { flex: 1, backgroundColor: '#F7F7F7', padding: SIZES.medium },
   header: { fontSize: FONTS.h2.fontSize, fontWeight: 'bold', marginBottom: SIZES.medium, color: COLORS.primary },
-  jobCard: { marginBottom: SIZES.medium, padding: SIZES.medium },
-  label: { fontWeight: 'bold', color: COLORS.textSecondary, marginBottom: 2 },
-  value: { fontWeight: 'normal', color: COLORS.textPrimary },
-  noJobs: { color: COLORS.textSecondary, textAlign: 'center', marginTop: 40 },
+  cleanCard: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 18,
+    marginBottom: SIZES.medium,
+    shadowColor: '#1976D2',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.09,
+    shadowRadius: 8,
+    elevation: 3,
+    borderLeftWidth: 5,
+    borderLeftColor: COLORS.primary,
+  },
+  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  statusBadge: {
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+    alignSelf: 'flex-start',
+    minWidth: 70,
+  },
+  statusText: { color: '#fff', fontWeight: 'bold', fontSize: 13, textAlign: 'center' },
+  label: { fontWeight: 'bold', color: COLORS.textSecondary, marginBottom: 2, fontSize: 15 },
+  value: { fontWeight: 'normal', color: COLORS.textPrimary, fontSize: 15 },
+  amountValue: { fontWeight: 'bold', color: '#388E3C', fontSize: 15 },
+  noJobs: { color: COLORS.textSecondary, textAlign: 'center', marginTop: 40, fontSize: 16 },
 });
 
 export default AdminJobsScreen;

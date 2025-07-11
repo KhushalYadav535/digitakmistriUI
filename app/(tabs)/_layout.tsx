@@ -86,12 +86,36 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="nearby-shops"
+        options={{
+          title: 'Shops',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="business" size={24} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="bookings"
         options={{
           title: 'Bookings',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar" size={24} color={color} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          title: 'Notifications',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="notifications" size={24} color={color} />
+          ),
+          tabBarBadge: notificationCount > 0 ? notificationCount : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: COLORS.error,
+            color: COLORS.white,
+            fontSize: 10,
+          },
         }}
       />
       <Tabs.Screen
@@ -103,10 +127,8 @@ export default function TabLayout() {
           ),
         }}
       />
-      {/* Hide all other screens from tab bar */}
+      {/* Hide dynamic routes from tab bar */}
       <Tabs.Screen name="payment" options={{ href: null }} />
-      <Tabs.Screen name="notifications" options={{ href: null }} />
-      <Tabs.Screen name="nearby-shops" options={{ href: null }} />
       <Tabs.Screen name="service-details" options={{ href: null }} />
       <Tabs.Screen name="booking" options={{ href: null }} />
       <Tabs.Screen name="shop" options={{ href: null }} />

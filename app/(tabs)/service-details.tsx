@@ -368,7 +368,8 @@ const ServiceDetailScreen = () => {
         initialService={{
           id: serviceId as string,
           title: selectedService.title,
-          type: selectedService.subtitle
+          type: selectedService.subtitle,
+          price: selectedService.price // Pass the service price
         }}
         onSubmit={handleBookingSubmit}
       />
@@ -381,7 +382,8 @@ const ServiceDetailScreen = () => {
         initialService={{
           id: serviceId as string,
           title: selectedServicesForCart.length === 1 ? selectedServicesForCart[0].title : `Multiple Services (${selectedServicesForCart.length} items)`,
-          type: 'Multiple'
+          type: 'Multiple',
+          price: `₹${calculateTotalPrice()}` // Pass the calculated total price
         }}
         onSubmit={(bookingData: any) => {
           // Navigate to payment with all selected services and booking details

@@ -47,6 +47,7 @@ const WorkerJobsScreen = () => {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [assignedBookings, setAssignedBookings] = useState<Job[]>([]);
   const [unassignedBookings, setUnassignedBookings] = useState<Job[]>([]);
+  const [completedBookings, setCompletedBookings] = useState<Job[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -116,7 +117,7 @@ const WorkerJobsScreen = () => {
     try {
       const token = await AsyncStorage.getItem('token');
       console.log('Fetching assigned bookings...');
-      const response = await axios.get(`${API_URL}/booking/worker`, {
+      const response = await axios.get(`${API_URL}/worker/bookings`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       console.log('Assigned bookings response:', response.data);
@@ -146,7 +147,7 @@ const WorkerJobsScreen = () => {
     try {
       const token = await AsyncStorage.getItem('token');
       console.log('Accepting job:', jobId);
-      const response = await axios.put(`${API_URL}/worker/accept-booking/${jobId}`, {}, {
+      const response = await axios.put(`${API_URL}/worker/bookings/${jobId}/accept`, {}, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       console.log('Accept job response:', response.data);
@@ -162,7 +163,7 @@ const WorkerJobsScreen = () => {
     try {
       const token = await AsyncStorage.getItem('token');
       console.log('Rejecting job:', jobId);
-      const response = await axios.post(`${API_URL}/booking/${jobId}/reject`, {}, {
+      const response = await axios.put(`${API_URL}/worker/bookings/${jobId}/reject`, {}, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       console.log('Reject job response:', response.data);
@@ -178,15 +179,9 @@ const WorkerJobsScreen = () => {
     try {
       const token = await AsyncStorage.getItem('token');
       console.log('Starting job:', jobId);
-      const response = await axios.put(`${API_URL}/booking/${jobId}/status`, 
-        { status: 'In Progress' },
-        {
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      const response = await axios.post(`${API_URL}/worker/jobs/${jobId}/start`, {}, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       console.log('Start job response:', response.data);
       Alert.alert('Success', 'Job started successfully');
       fetchJobs();

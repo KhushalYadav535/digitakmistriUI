@@ -48,7 +48,8 @@ const NotificationsScreen = () => {
     try {
       const response: any = await apiClient.put(`/notifications/${notificationId}/read`);
       
-      if (response && response.status === 200) {
+      // Since apiClient returns only the data, we don't need to check response.status
+      if (response && response.message) {
         setNotifications(prev => 
           prev.map(notif => 
             notif._id === notificationId ? { ...notif, isRead: true } : notif
@@ -75,9 +76,10 @@ const NotificationsScreen = () => {
               if (!userStr) return;
 
               const user = JSON.parse(userStr);
-              const response: any = await apiClient.delete(`/notifications/customer/${user._id}/clear-all`);
+              const response: any = await apiClient.delete(`/notifications/customer/${user.id}/clear-all`);
               
-              if (response && response.status === 200) {
+              // Since apiClient returns only the data, we don't need to check response.status
+              if (response && response.message) {
                 setNotifications([]);
                 Alert.alert('Success', 'All notifications cleared successfully');
               } else {

@@ -11,6 +11,7 @@ interface Service {
   id: string;
   title: string;
   type: string;
+  price?: string; // Add price field
 }
 
 interface BookingFormProps {
@@ -27,6 +28,7 @@ interface BookingFormProps {
       pincode: string;
     };
     phone: string;
+    amount: number;
   }) => void;
   isLoading?: boolean;
 }
@@ -47,7 +49,16 @@ const BookingForm: React.FC<BookingFormProps> = ({
     pincode: ''
   });
   const [phone, setPhone] = useState('');
+  const [amount, setAmount] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Auto-fill amount from service price when component mounts
+  React.useEffect(() => {
+    if (initialService?.price) {
+      const priceValue = initialService.price.replace('₹', '');
+      setAmount(priceValue);
+    }
+  }, [initialService]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -59,6 +70,10 @@ const BookingForm: React.FC<BookingFormProps> = ({
     if (!phone) newErrors.phone = 'Phone number is required';
     if (phone && !/^[0-9]{10}$/.test(phone)) {
       newErrors.phone = 'Please enter a valid 10-digit phone number';
+    }
+    if (!amount) newErrors.amount = 'Amount is required';
+    if (amount && (isNaN(Number(amount)) || Number(amount) <= 0)) {
+      newErrors.amount = 'Please enter a valid amount';
     }
 
     setErrors(newErrors);
@@ -79,7 +94,8 @@ const BookingForm: React.FC<BookingFormProps> = ({
       date: date.toISOString().split('T')[0],
       time: formatTime(time),
       address,
-      phone
+      phone,
+      amount: Number(amount)
     };
 
     onSubmit(bookingData);
@@ -200,6 +216,22 @@ const BookingForm: React.FC<BookingFormProps> = ({
           keyboardType="phone-pad"
         />
 
+        <Input
+          label="Amount"
+          value={amount}
+          onChangeText={setAmount}
+          error={errors.amount}
+          placeholder="Enter the amount"
+          keyboardType="numeric"
+          editable={initialService?.type === 'Multiple'} // Only editable for multiple services
+        />
+        
+        {initialService?.price && initialService.type !== 'Multiple' && (
+          <Text style={styles.amountNote}>
+            * Amount is pre-filled from service price. You can modify if needed.
+          </Text>
+        )}
+
         <Button
           title="Book Now"
           onPress={handleSubmit}
@@ -224,6 +256,7 @@ interface Styles {
   dateTimeText: TextStyle;
   submitButton: ViewStyle;
   backButton: ViewStyle;
+  amountNote: TextStyle;
 }
 
 const styles = StyleSheet.create<Styles>({
@@ -284,6 +317,12 @@ const styles = StyleSheet.create<Styles>({
     position: 'absolute',
     top: SIZES.padding,
     left: SIZES.padding,
+  },
+  amountNote: {
+    ...FONTS.body4,
+    color: COLORS.gray,
+    marginTop: SIZES.base,
+    marginBottom: SIZES.base,
   },
 });
 

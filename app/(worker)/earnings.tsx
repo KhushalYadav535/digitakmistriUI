@@ -22,20 +22,26 @@ const EarningsScreen = () => {
         setError(null);
         const token = await AsyncStorage.getItem('token');
         console.log('Fetching earnings...');
-        const response = await axios.get(`${API_URL}/worker/dashboard`, {
+        const response = await axios.get(`${API_URL}/worker/earnings`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         console.log('Earnings response:', response.data);
         
-        if (response.data?.stats?.earnings) {
-          // Sort earnings by date in descending order
-          const sortedEarnings = response.data.stats.earnings.sort((a: Earning, b: Earning) => 
-            new Date(b.date).getTime() - new Date(a.date).getTime()
-          );
-          setEarnings(sortedEarnings);
-        } else {
-          setEarnings([]);
+        // Convert earnings data to the expected format
+        const earningsData = response.data;
+        const earningsArray = [];
+        
+        if (earningsData.daily > 0) {
+          earningsArray.push({ date: new Date().toISOString().split('T')[0], amount: earningsData.daily });
         }
+        if (earningsData.weekly > 0) {
+          earningsArray.push({ date: new Date().toISOString().split('T')[0], amount: earningsData.weekly });
+        }
+        if (earningsData.monthly > 0) {
+          earningsArray.push({ date: new Date().toISOString().split('T')[0], amount: earningsData.monthly });
+        }
+        
+        setEarnings(earningsArray);
       } catch (err: any) {
         console.error('Earnings fetch error:', err.response?.data || err.message);
         setError('Failed to fetch earnings: ' + (err.response?.data?.message || err.message));

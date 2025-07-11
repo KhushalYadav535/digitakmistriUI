@@ -13,9 +13,7 @@ const WorkerEditProfileScreen = () => {
     name: '',
     phone: '',
     email: '',
-    address: '',
-    experience: '',
-    services: [],
+    services: [] as string[],
   });
 
   useEffect(() => {
@@ -32,8 +30,6 @@ const WorkerEditProfileScreen = () => {
           name: data.name || '',
           phone: data.phone || '',
           email: data.email || '',
-          address: data.address || '',
-          experience: data.experience ? String(data.experience) : '',
           services: data.services || [],
         });
       } catch (e) {}
@@ -95,29 +91,14 @@ const WorkerEditProfileScreen = () => {
             placeholder="Enter your email"
             keyboardType="email-address"
           />
-          <Input
-            label="Address"
-            value={formData.address}
-            onChangeText={(text) => setFormData({ ...formData, address: text })}
-            placeholder="Enter your address"
-            multiline
-            numberOfLines={3}
-          />
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Professional Details</Text>
-          <Input
-            label="Years of Experience"
-            value={formData.experience}
-            onChangeText={(text) => setFormData({ ...formData, experience: text })}
-            placeholder="Enter years of experience"
-            keyboardType="numeric"
-          />
 
           <Text style={styles.label}>Services Offered</Text>
           <View style={styles.servicesContainer}>
-            {['Plumbing', 'Electrical', 'Carpentry', 'Painting'].map(
+            {['Plumbing', 'Electrical', 'Carpentry', 'Painting', 'Cleaning', 'Repair'].map(
               (service) => (
                 <TouchableOpacity
                   key={service}

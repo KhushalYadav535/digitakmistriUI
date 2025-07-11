@@ -12,6 +12,7 @@ import {
   Linking
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import * as Location from 'expo-location';
@@ -126,6 +127,13 @@ export default function NearbyShopsScreen() {
     Linking.openURL(url);
   };
 
+  const handleViewDetails = (shop: Shop) => {
+    router.push({
+      pathname: '/(tabs)/shop/[id]' as any,
+      params: { id: shop._id }
+    });
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -197,15 +205,22 @@ export default function NearbyShopsScreen() {
                     style={[styles.actionButton, styles.callButton]}
                     onPress={() => handleCall(shop.phone)}
                   >
-                    <Ionicons name="call" size={20} color="white" />
+                    <Ionicons name="call" size={16} color="white" />
                     <Text style={styles.actionButtonText}>Call</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.actionButton, styles.directionsButton]}
                     onPress={() => handleDirections(shop)}
                   >
-                    <Ionicons name="navigate" size={20} color="white" />
+                    <Ionicons name="navigate" size={16} color="white" />
                     <Text style={styles.actionButtonText}>Directions</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.viewDetailsButton]}
+                    onPress={() => handleViewDetails(shop)}
+                  >
+                    <Ionicons name="information-circle" size={16} color="white" />
+                    <Text style={styles.actionButtonText}>Details</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -340,7 +355,8 @@ const styles = StyleSheet.create({
   },
   actionButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-between'
+    justifyContent: 'space-between',
+    gap: SIZES.base,
   },
   actionButton: {
     flex: 1,
@@ -349,7 +365,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: SIZES.base,
     borderRadius: SIZES.radius,
-    marginHorizontal: SIZES.base / 2
+    minHeight: 40,
   },
   callButton: {
     backgroundColor: COLORS.primary
@@ -357,10 +373,13 @@ const styles = StyleSheet.create({
   directionsButton: {
     backgroundColor: COLORS.info
   },
+  viewDetailsButton: {
+    backgroundColor: COLORS.secondary
+  },
   actionButtonText: {
     color: COLORS.white,
     marginLeft: SIZES.base / 2,
-    fontSize: FONTS.body3.fontSize,
+    fontSize: FONTS.body4.fontSize,
     fontWeight: '500'
   }
 }); 

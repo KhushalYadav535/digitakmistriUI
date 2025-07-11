@@ -80,6 +80,10 @@ const AdminLayout = () => {
           ),
         }}
       />
+      <Tabs.Screen
+        name="worker-detail"
+        options={{ href: null }}
+      />
 
     </Tabs>
   );

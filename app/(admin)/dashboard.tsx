@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator, Alert } from 'react-native';
 import Card from '../../components/Card';
 import { COLORS, FONTS, SHADOWS, SIZES } from '../constants/theme';
-import { fetchDashboardOverview, fetchWorkers } from './dashboard.api';
+import { fetchDashboardOverview, fetchWorkers } from '../utils/adminApi';
 
 interface Worker {
   _id: string;

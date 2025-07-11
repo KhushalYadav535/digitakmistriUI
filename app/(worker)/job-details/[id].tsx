@@ -164,32 +164,25 @@ const JobDetailsScreen = () => {
     try {
       const token = await AsyncStorage.getItem('token');
       let endpoint = '';
-      let data = {};
 
       switch (action) {
         case 'start':
-          endpoint = `/bookings/${id}/status`;
-          data = { status: 'In Progress' };
+          endpoint = `/worker/jobs/${id}/start`;
           break;
         case 'complete':
-          endpoint = `/bookings/${id}/status`;
-          data = { status: 'Completed' };
+          endpoint = `/worker/jobs/${id}/complete`;
           break;
         case 'cancel':
-          endpoint = `/bookings/${id}/status`;
-          data = { status: 'Cancelled' };
+          endpoint = `/worker/jobs/${id}/cancel`;
           break;
       }
 
-      const response = await axios.put(`${API_URL}${endpoint}`, data, {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+      const response = await axios.post(`${API_URL}${endpoint}`, {}, {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
       console.log(`${action} job response:`, response.data);
-      setJob(response.data);
+      await fetchJobDetails(); // Refresh job details
       Alert.alert('Success', `Job ${action}ed successfully`);
     } catch (err: any) {
       console.error(`${action} job error:`, err.response?.data || err.message);

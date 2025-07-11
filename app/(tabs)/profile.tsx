@@ -9,7 +9,6 @@ import { useAuth } from '../context/AuthContext';
 const menuItems = [
   { id: 'notifications', title: 'Notifications', icon: 'notifications', route: '/notifications' },
   { id: 'edit', title: 'Edit Profile', icon: 'pencil', route: '/edit-profile' },
-  { id: 'change', title: 'Change Password', icon: 'lock-closed', route: '/change-password' },
   { id: 'help', title: 'Help & Support', icon: 'help-circle', route: '/help-support' },
   { id: 'logout', title: 'Logout', icon: 'log-out', route: null },
 ];

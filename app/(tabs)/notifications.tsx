@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View, Alert } from 'react-native';
 import Card from '../../components/Card';
 import { COLORS, FONTS, SHADOWS, SIZES } from '../../constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -124,6 +124,44 @@ const NotificationsScreen = () => {
     }
   };
 
+  const clearAllNotifications = async () => {
+    Alert.alert(
+      'Clear All Notifications',
+      'Are you sure you want to clear all notifications?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const userStr = await AsyncStorage.getItem('user');
+              if (!userStr) return;
+
+              const user = JSON.parse(userStr);
+              const token = await AsyncStorage.getItem('token');
+              const response: any = await axios.delete(`${API_URL}/notifications/customer/${user.id}/clear-all`, {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              });
+              
+              if (response && response.data && response.data.message) {
+                setNotifications([]);
+                Alert.alert('Success', 'All notifications cleared successfully');
+              } else {
+                Alert.alert('Error', 'Failed to clear notifications');
+              }
+            } catch (error) {
+              console.error('Error clearing notifications:', error);
+              Alert.alert('Error', 'Failed to clear notifications. Please try again.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
@@ -134,7 +172,7 @@ const NotificationsScreen = () => {
           <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Notifications</Text>
-        <TouchableOpacity style={styles.clearButton}>
+        <TouchableOpacity style={styles.clearButton} onPress={clearAllNotifications}>
           <Text style={styles.clearText}>Clear All</Text>
         </TouchableOpacity>
       </View>

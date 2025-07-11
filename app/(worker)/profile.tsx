@@ -23,13 +23,12 @@ interface WorkerProfile {
   name: string;
   email: string;
   phone: string;
-  address: string;
-  service: string;
-  rating: number;
-  jobs: number;
-  earnings: number;
-  experience: number;
+  services: string[];
+  totalBookings: number;
+  completedBookings: number;
+  totalEarnings: number;
   isVerified: boolean;
+  isAvailable: boolean;
 }
 
 const WorkerProfileScreen = () => {
@@ -115,7 +114,7 @@ const WorkerProfileScreen = () => {
             </View>
           </View>
           <Text style={styles.name}>{worker.name}</Text>
-          <Text style={styles.service}>{worker.service}</Text>
+          <Text style={styles.service}>{worker.services?.join(', ') || 'No services'}</Text>
         </View>
 
         <View style={styles.navigationButtons}>
@@ -140,18 +139,18 @@ const WorkerProfileScreen = () => {
         <Card variant="elevated" style={styles.statsCard}>
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{worker.rating}</Text>
-              <Text style={styles.statLabel}>Rating</Text>
+              <Text style={styles.statValue}>{worker.totalBookings}</Text>
+              <Text style={styles.statLabel}>Total Jobs</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{worker.jobs}</Text>
-              <Text style={styles.statLabel}>Jobs</Text>
+              <Text style={styles.statValue}>{worker.completedBookings}</Text>
+              <Text style={styles.statLabel}>Completed</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{worker.experience}y</Text>
-              <Text style={styles.statLabel}>Experience</Text>
+              <Text style={styles.statValue}>{worker.isAvailable ? 'Yes' : 'No'}</Text>
+              <Text style={styles.statLabel}>Available</Text>
             </View>
           </View>
         </Card>
@@ -168,8 +167,8 @@ const WorkerProfileScreen = () => {
               <Text style={styles.infoText}>{worker.phone}</Text>
             </View>
             <View style={styles.infoItem}>
-              <Ionicons name="location-outline" size={20} color={COLORS.textSecondary} />
-              <Text style={styles.infoText}>{worker.address}</Text>
+              <Ionicons name="construct-outline" size={20} color={COLORS.textSecondary} />
+              <Text style={styles.infoText}>{worker.services?.join(', ') || 'No services'}</Text>
             </View>
           </View>
         </Card>
@@ -177,7 +176,7 @@ const WorkerProfileScreen = () => {
         <Card variant="elevated" style={styles.section}>
           <Text style={styles.sectionTitle}>Earnings</Text>
           <View style={styles.earningsContainer}>
-            <Text style={styles.earningsAmount}>₹{worker.earnings}</Text>
+            <Text style={styles.earningsAmount}>₹{worker.totalEarnings}</Text>
             <Text style={styles.earningsLabel}>Total Earnings</Text>
           </View>
         </Card>

@@ -22,6 +22,7 @@ const BookingScreen = () => {
       pincode: string;
     };
     phone: string;
+    amount: number;
   }) => {
     setIsLoading(true);
     let alertShown = false;
@@ -44,6 +45,7 @@ const BookingScreen = () => {
           bookingTime: bookingData.time,
           address: bookingData.address,
           phone: bookingData.phone,
+          amount: bookingData.amount,
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -108,7 +110,8 @@ const BookingScreen = () => {
         initialService={{ 
           id: serviceId as string, 
           title: serviceTitle as string,
-          type: serviceId as string
+          type: serviceId as string,
+          price: servicePrice ? `₹${servicePrice}` : undefined // Pass service price if available
         }}
         onSubmit={handleBooking}
         isLoading={isLoading}
