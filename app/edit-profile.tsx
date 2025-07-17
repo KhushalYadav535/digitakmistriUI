@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState, useEffect } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View, Alert, TextInput } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View, Alert, TextInput, Image, ActivityIndicator } from 'react-native';
 import { COLORS, FONTS, SHADOWS, SIZES } from './constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from './constants/config';
 import axios from 'axios';
+import * as ImagePicker from 'expo-image-picker';
 
 const CustomerEditProfileScreen = () => {
   const [formData, setFormData] = useState({
@@ -17,9 +18,11 @@ const CustomerEditProfileScreen = () => {
       city: '',
       state: '',
       pincode: ''
-    }
+    },
+    profileImage: '',
   });
   const [loading, setLoading] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -28,7 +31,6 @@ const CustomerEditProfileScreen = () => {
         const response = await axios.get(`${API_URL}/customer/profile`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        
         const customer = response.data;
         setFormData({
           name: customer.name || '',
@@ -39,7 +41,8 @@ const CustomerEditProfileScreen = () => {
             city: '',
             state: '',
             pincode: ''
-          }
+          },
+          profileImage: customer.profileImage || '',
         });
       } catch (error) {
         console.error('Error fetching profile:', error);
@@ -48,6 +51,53 @@ const CustomerEditProfileScreen = () => {
     };
     fetchProfile();
   }, []);
+
+  const pickImage = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert('Permission required', 'Permission to access gallery is required!');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      uploadImage(result.assets[0].uri);
+    }
+  };
+
+  const uploadImage = async (uri: string) => {
+    try {
+      setImageUploading(true);
+      const token = await AsyncStorage.getItem('token');
+      const formData = new FormData();
+      formData.append('image', {
+        uri,
+        name: 'profile.jpg',
+        type: 'image/jpeg',
+      } as any);
+      const response = await axios.post(`${API_URL}/customer/profile-image`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      setFormData(prev => {
+        const updated = { ...prev, profileImage: response.data.profileImage };
+        AsyncStorage.setItem('user', JSON.stringify(updated));
+        return updated;
+      });
+      Alert.alert('Success', 'Profile image updated!');
+    } catch (error: any) {
+      console.error('Image upload error:', error);
+      Alert.alert('Error', error.response?.data?.message || 'Failed to upload image');
+    } finally {
+      setImageUploading(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!formData.name.trim()) {
@@ -193,6 +243,22 @@ const CustomerEditProfileScreen = () => {
               keyboardType="numeric"
             />
           </View>
+        </View>
+
+        <View style={{ alignItems: 'center', marginBottom: 24 }}>
+          <TouchableOpacity onPress={pickImage} disabled={imageUploading}>
+            {imageUploading ? (
+              <ActivityIndicator size="large" color={COLORS.primary} />
+            ) : (
+              <Image
+                source={{ uri: formData.profileImage || 'https://via.placeholder.com/100' }}
+                style={{ width: 90, height: 90, borderRadius: 45, borderWidth: 2, borderColor: COLORS.primary, backgroundColor: '#eee' }}
+              />
+            )}
+            <View style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: COLORS.primary, borderRadius: 12, padding: 4 }}>
+              <Ionicons name="camera" size={18} color="#fff" />
+            </View>
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity

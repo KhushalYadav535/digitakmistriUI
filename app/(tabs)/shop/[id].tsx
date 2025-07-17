@@ -8,7 +8,9 @@ import {
   Image,
   ActivityIndicator,
   Alert,
-  Linking
+  Linking,
+  Modal,
+  TextInput
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -44,12 +46,56 @@ export default function ShopDetailScreen() {
   const [shop, setShop] = useState<Shop | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
       loadShopDetails();
     }
   }, [id]);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const userStr = await AsyncStorage.getItem('user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        setUserId(user.id || user._id || null);
+      }
+    };
+    fetchUser();
+  }, []);
+
+  const hasReviewed = shop?.reviews?.some(r => r.user === userId);
+
+  const handleSubmitReview = async () => {
+    if (!reviewRating) {
+      Alert.alert('Please select a rating');
+      return;
+    }
+    setSubmittingReview(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.post(`${API_URL}/nearby-shops/${id}/reviews`, {
+        rating: reviewRating,
+        comment: reviewComment,
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setShowReviewModal(false);
+      setReviewRating(0);
+      setReviewComment('');
+      loadShopDetails(); // Refresh reviews
+      Alert.alert('Thank you!', 'Your review has been submitted.');
+    } catch (err: any) {
+      Alert.alert('Error', err.response?.data?.message || 'Failed to submit review');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
 
   const loadShopDetails = async () => {
     try {
@@ -217,6 +263,44 @@ export default function ShopDetailScreen() {
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* --- REVIEWS SECTION --- */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="chatbubble-ellipses" size={20} color={COLORS.primary} />
+              <Text style={styles.sectionTitle}>Customer Reviews</Text>
+            </View>
+            {shop.reviews.length === 0 && (
+              <Text style={{ color: COLORS.textSecondary }}>No reviews yet.</Text>
+            )}
+            {shop.reviews.map((review, idx) => (
+              <View key={idx} style={{ marginBottom: 16, backgroundColor: '#F8F9FB', borderRadius: 10, padding: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                  {[1,2,3,4,5].map(star => (
+                    <Ionicons
+                      key={star}
+                      name={star <= review.rating ? 'star' : 'star-outline'}
+                      size={16}
+                      color="#FFD700"
+                    />
+                  ))}
+                  <Text style={{ marginLeft: 8, color: COLORS.textSecondary, fontSize: 12 }}>
+                    {review.createdAt ? new Date(review.createdAt).toLocaleDateString() : ''}
+                  </Text>
+                </View>
+                <Text style={{ color: COLORS.textPrimary }}>{review.comment}</Text>
+              </View>
+            ))}
+            {!hasReviewed && userId && (
+              <TouchableOpacity
+                style={{ backgroundColor: COLORS.primary, borderRadius: 8, padding: 12, alignItems: 'center', marginTop: 8 }}
+                onPress={() => setShowReviewModal(true)}
+              >
+                <Ionicons name="add-circle" size={18} color="#fff" />
+                <Text style={{ color: '#fff', fontWeight: 'bold', marginTop: 2 }}>Add Review</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </ScrollView>
 
@@ -231,6 +315,43 @@ export default function ShopDetailScreen() {
           <Text style={styles.directionsButtonText}>Directions</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Review Modal */}
+      <Modal visible={showReviewModal} animationType="slide" transparent>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, width: '85%' }}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 12, color: COLORS.textPrimary }}>Add Your Review</Text>
+            <View style={{ flexDirection: 'row', marginBottom: 16 }}>
+              {[1,2,3,4,5].map(star => (
+                <TouchableOpacity key={star} onPress={() => setReviewRating(star)}>
+                  <Ionicons
+                    name={star <= reviewRating ? 'star' : 'star-outline'}
+                    size={32}
+                    color="#FFD700"
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput
+              placeholder="Write your review..."
+              value={reviewComment}
+              onChangeText={setReviewComment}
+              style={{ borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 10, minHeight: 60, marginBottom: 16, color: COLORS.textPrimary }}
+              multiline
+            />
+            <TouchableOpacity
+              style={{ backgroundColor: COLORS.primary, borderRadius: 8, padding: 14, alignItems: 'center', marginBottom: 8 }}
+              onPress={handleSubmitReview}
+              disabled={submittingReview}
+            >
+              <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>{submittingReview ? 'Submitting...' : 'Submit Review'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowReviewModal(false)}>
+              <Text style={{ color: COLORS.error, textAlign: 'center', fontSize: 15 }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

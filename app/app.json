@@ -2,9 +2,9 @@
   "expo": {
     "name": "Digital Mistri",
     "slug": "digital-mistri",
-    "version": "1.0.6",
+    "version": "1.0.7",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/applogo.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash.png",
@@ -18,10 +18,12 @@
       "supportsTablet": true
     },
     "android": {
+      "name": "Digital Mistri",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/applogo.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "versionCode": 15
     },
     "web": {
       "favicon": "./assets/favicon.png"

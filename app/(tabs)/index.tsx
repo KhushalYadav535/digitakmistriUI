@@ -157,7 +157,7 @@ const TabLayout = () => {
     >
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.logoBrandContainer}>
-            <Image source={require('../../assets/images/applogo.jpeg')} style={styles.logo} />
+            <Image source={require('../../assets/images/applogo.png')} style={styles.logo} />
             <Text style={styles.brand}>DIGITAL MISTRI</Text>
           </View>
           <View style={styles.greetingContainer}>

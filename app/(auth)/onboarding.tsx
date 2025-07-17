@@ -12,6 +12,7 @@ import {
     ViewToken,
 } from 'react-native';
 import { COLORS, FONTS, SHADOWS, SIZES } from '../constants/theme';
+import { useTranslation } from 'react-i18next';
 
 const { width } = Dimensions.get('window');
 
@@ -20,7 +21,7 @@ const slides = [
     id: '1',
     title: 'Welcome to Digital Village',
     description: 'Connect with skilled workers in your village for all your service needs',
-    image: require('../../assets/images/applogo.jpeg'),
+    image: require('../../assets/images/applogo.png'),
   },
   {
     id: '2',
@@ -94,6 +95,8 @@ const OnboardingScreen = () => {
     );
   };
 
+  const { t } = useTranslation();
+
   return (
     <View style={styles.container}>
       <View style={styles.skipContainer}>
@@ -103,7 +106,7 @@ const OnboardingScreen = () => {
             router.replace('/(auth)/role-selection' as any);
           }}
         >
-          <Text style={styles.skipText}>Skip</Text>
+          <Text style={styles.skipText}>{t('skip')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -113,7 +116,7 @@ const OnboardingScreen = () => {
           <View style={styles.slide}>
             <Image source={item.image} style={styles.image} />
             <View style={styles.textContainer}>
-              <Text style={styles.title}>{item.title}</Text>
+              <Text style={styles.title}>{t('onboarding_title')}</Text>
               <Text style={styles.description}>{item.description}</Text>
             </View>
           </View>

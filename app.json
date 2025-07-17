@@ -2,9 +2,9 @@
   "expo": {
     "name": "Digital Mistri",
     "slug": "digital",
-    "version": "1.0.7",
+    "version": "1.0.9",
     "orientation": "portrait",
-    "icon": "./assets/images/applogo.jpeg",
+    "icon": "./assets/images/applogo.png",
     "scheme": "digital",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -13,12 +13,12 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/applogo.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.khushalyadav535.digital",
-      "versionCode": 11,
+      "versionCode": 13,
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE"

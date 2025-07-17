@@ -10,6 +10,7 @@ import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from 'react-i18next';
 
 const { width } = Dimensions.get('window');
 
@@ -20,6 +21,7 @@ const WorkerLoginScreen = () => {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const { login, isAuthenticated, user } = useAuth();
+  const { t } = useTranslation();
 
   const handleLogin = async () => {
     setError('');
@@ -67,17 +69,17 @@ const WorkerLoginScreen = () => {
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.logoContainer}>
-          <Image source={require('../../assets/images/applogo.jpeg')} style={styles.logo} />
+          <Image source={require('../../assets/images/applogo.png')} style={styles.logo} />
         </View>
-        <Text style={styles.title}>Worker Login</Text>
-        <Text style={styles.subtitle}>Welcome back! Please login to continue</Text>
+        <Text style={styles.title}>{t('worker_login')}</Text>
+        <Text style={styles.subtitle}>{t('worker_login_subtitle')}</Text>
       </View>
       <View style={styles.formContainer}>
         <View style={styles.inputContainer}>
           <Ionicons name="mail-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
           <TextInput
             style={styles.input}
-            placeholder="Email"
+            placeholder={t('email')}
             placeholderTextColor={COLORS.textSecondary}
             value={email}
             onChangeText={setEmail}
@@ -89,7 +91,7 @@ const WorkerLoginScreen = () => {
           <Ionicons name="lock-closed-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
           <TextInput
             style={styles.input}
-            placeholder="Password"
+            placeholder={t('password')}
             placeholderTextColor={COLORS.textSecondary}
             value={password}
             onChangeText={setPassword}
@@ -113,7 +115,7 @@ const WorkerLoginScreen = () => {
           </View>
         )}
         <Button
-          title="Login"
+          title={t('login')}
           onPress={handleLogin}
           loading={isLoading}
           style={styles.button}

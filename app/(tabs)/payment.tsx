@@ -345,7 +345,7 @@ const PaymentScreen = () => {
           <QRCode
             value={upiUri}
             size={200}
-            logo={require('../../assets/images/applogo.jpeg')}
+            logo={require('../../assets/images/applogo.png')}
             logoSize={40}
             logoBackgroundColor='white'
           />

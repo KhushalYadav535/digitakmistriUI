@@ -10,6 +10,7 @@ import { API_URL } from '../constants/config';
 import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import { useTranslation } from 'react-i18next';
 
 const { width } = Dimensions.get('window');
 
@@ -24,6 +25,8 @@ const RegisterScreen = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const { t } = useTranslation();
 
   const validateForm = () => {
     const errors: Record<string, string> = {};
@@ -99,7 +102,7 @@ const RegisterScreen = () => {
       await AsyncStorage.setItem('token', token);
       await AsyncStorage.setItem('user', JSON.stringify(user));
 
-      Alert.alert('Success', 'Registration successful!', [
+      Alert.alert(t('success'), t('register_success'), [
         {
           text: 'OK',
           onPress: () => router.push('/(tabs)' as any)
@@ -115,11 +118,11 @@ const RegisterScreen = () => {
       
       if (!error.response) {
         if (error.code === 'ECONNABORTED') {
-          setError('Request timed out. Please try again.');
+          setError(t('request_timeout'));
         } else if (error.message === 'Network Error') {
-          setError('Cannot connect to server. Please check your internet connection and try again.');
+          setError(t('network_error'));
         } else {
-          setError('Network error. Please try again later.');
+          setError(t('network_error'));
         }
         return;
       }
@@ -146,13 +149,13 @@ const RegisterScreen = () => {
       } else if (errorData.message) {
         // Handle specific error messages
         if (errorData.message === 'Email already registered') {
-          setFieldErrors({ email: 'This email is already registered' });
+          setFieldErrors({ email: t('email_already_registered') });
         } else {
           setError(errorData.message);
         }
       } else {
         // Handle generic error
-        setError('Registration failed. Please try again.');
+        setError(t('register_failed'));
       }
     } finally {
       setLoading(false);
@@ -208,15 +211,15 @@ const RegisterScreen = () => {
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.header}>
         <View style={styles.logoContainer}>
-          <Image source={require('../../assets/images/applogo.jpeg')} style={styles.logo} />
+          <Image source={require('../../assets/images/applogo.png')} style={styles.logo} />
         </View>
-        <Text style={styles.title}>Create Account</Text>
-        <Text style={styles.subtitle}>Join us! Please register to continue</Text>
+        <Text style={styles.title}>{t('register_title')}</Text>
+        <Text style={styles.subtitle}>{t('register_subtitle')}</Text>
       </View>
       <View style={styles.formContainer}>
         {renderInput(
           "person-outline",
-          "Full Name",
+          t('full_name'),
           name,
           setName,
           'default',
@@ -271,7 +274,7 @@ const RegisterScreen = () => {
           </View>
         )}
         <Button
-          title="Register"
+          title={t('register')}
           onPress={handleRegister}
           loading={loading}
           style={styles.button}

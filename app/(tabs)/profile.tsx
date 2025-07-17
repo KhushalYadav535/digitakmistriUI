@@ -123,6 +123,12 @@ const ProfileScreen = () => {
     }
   };
 
+  const getProfileImageUrl = (imgPath: string) => {
+    if (!imgPath) return 'https://via.placeholder.com/100';
+    if (imgPath.startsWith('http')) return imgPath;
+    return `http://192.168.1.4:5000${imgPath}`;
+  };
+
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F7F8FA' }}>
@@ -136,7 +142,7 @@ const ProfileScreen = () => {
       <View style={styles.headerBg} />
       <View style={styles.profileCard}>
         <Image
-          source={{ uri: user?.profileImage || 'https://via.placeholder.com/100' }}
+          source={{ uri: getProfileImageUrl(user?.profileImage) }}
           style={styles.profileImage}
         />
         <Text style={styles.userName}>{user?.name || 'Your Name'}</Text>

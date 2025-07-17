@@ -209,7 +209,7 @@ const AdminProfileScreen = () => {
         <View style={styles.profileInfo}>
           <View style={styles.avatarContainer}>
             <Image
-              source={require('../../assets/images/applogo.jpeg')}
+              source={require('../../assets/images/applogo.png')}
               style={styles.avatar}
             />
           </View>

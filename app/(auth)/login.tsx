@@ -10,6 +10,7 @@ import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from 'react-i18next';
 
 const { width } = Dimensions.get('window');
 
@@ -20,19 +21,20 @@ const LoginScreen = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const { login, isAuthenticated, user } = useAuth();
+  const { t } = useTranslation();
 
   const validateForm = () => {
     if (!email.trim()) {
-      Alert.alert('Error', 'Please enter your email');
+      Alert.alert(t('error'), t('please_enter_email'));
       return false;
     }
     const emailRegex = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
     if (!emailRegex.test(email)) {
-      Alert.alert('Error', 'Please enter a valid email address');
+      Alert.alert(t('error'), t('please_enter_valid_email'));
       return false;
     }
     if (!password) {
-      Alert.alert('Error', 'Please enter your password');
+      Alert.alert(t('error'), t('please_enter_password'));
       return false;
     }
     return true;
@@ -71,7 +73,7 @@ const LoginScreen = () => {
       // The AuthContext will handle the routing automatically
       // No need to manually redirect here
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Please check your credentials and try again');
+      setError(error.response?.data?.message || t('please_check_credentials_and_try_again'));
     } finally {
       setLoading(false);
     }
@@ -91,17 +93,17 @@ const LoginScreen = () => {
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.logoContainer}>
-          <Image source={require('../../assets/images/applogo.jpeg')} style={styles.logo} />
+          <Image source={require('../../assets/images/applogo.png')} style={styles.logo} />
         </View>
-        <Text style={styles.title}>Customer Login</Text>
-        <Text style={styles.subtitle}>Welcome back! Please login to continue</Text>
+        <Text style={styles.title}>{t('customer_login')}</Text>
+        <Text style={styles.subtitle}>{t('login_subtitle')}</Text>
       </View>
       <View style={styles.formContainer}>
         <View style={styles.inputContainer}>
           <Ionicons name="mail-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
           <TextInput
             style={styles.input}
-            placeholder="Email"
+            placeholder={t('email')}
             placeholderTextColor={COLORS.textSecondary}
             value={email}
             onChangeText={setEmail}
@@ -113,7 +115,7 @@ const LoginScreen = () => {
           <Ionicons name="lock-closed-outline" size={20} color={COLORS.textSecondary} style={styles.inputIcon} />
           <TextInput
             style={styles.input}
-            placeholder="Password"
+            placeholder={t('password')}
             placeholderTextColor={COLORS.textSecondary}
             value={password}
             onChangeText={setPassword}
@@ -137,7 +139,7 @@ const LoginScreen = () => {
           </View>
         )}
         <Button
-          title="Login"
+          title={t('login')}
           onPress={handleLogin}
           loading={loading}
           style={styles.button}
@@ -146,14 +148,15 @@ const LoginScreen = () => {
           style={styles.forgotPasswordButton}
           onPress={() => router.push('/forgot-password' as any)}
         >
-          <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+          <Text style={styles.forgotPasswordText}>{t('forgot_password')}</Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.registerButton}
           onPress={() => router.push('/(auth)/register' as any)}
         >
           <Text style={styles.registerText}>
-            Don't have an account? <Text style={styles.registerTextBold}>Register</Text>
+            {t('dont_have_account')}{' '}
+            <Text style={styles.registerTextBold}>{t('register')}</Text>
           </Text>
         </TouchableOpacity>
       </View>

@@ -48,7 +48,7 @@ const LanguageScreen = () => {
     <View style={styles.container}>
       <View style={styles.header}>
         <Image
-          source={require('../../assets/images/applogo.jpeg')}
+          source={require('../../assets/images/applogo.png')}
           style={styles.logo}
         />
         <Text style={styles.title}>{t('select_language')}</Text>

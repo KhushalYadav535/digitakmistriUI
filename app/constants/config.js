@@ -1,5 +1,5 @@
 // Use your computer's local IP for device testing on real devices
-const LOCAL_API = 'http://192.168.1.3:5000/api'; // Your computer's local IP
+const LOCAL_API = 'http://192.168.1.4:5000/api'; // Your computer's local IP
 const PROD_API = 'https://digital-mistri.onrender.com/api';
 
 // API Configuration

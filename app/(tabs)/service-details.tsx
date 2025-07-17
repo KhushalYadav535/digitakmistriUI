@@ -435,12 +435,14 @@ const ServiceDetailScreen = () => {
                 </View>
                 <Text style={styles.serviceCharges}>{item.charges}</Text>
                 <View style={{ marginTop: 8, alignItems: 'flex-end' }}>
-                  <TouchableOpacity
-                    style={styles.bookNowBtn}
-                    onPress={() => handleBookNow(item)}
-                  >
-                    <Text style={styles.bookNowText}>Book Now</Text>
-                  </TouchableOpacity>
+                  {/*
+                <TouchableOpacity
+                  style={styles.bookNowBtn}
+                  onPress={() => handleBookNow(item)}
+                >
+                  <Text style={styles.bookNowText}>Book Now</Text>
+                </TouchableOpacity>
+                */}
                 </View>
               </View>
               

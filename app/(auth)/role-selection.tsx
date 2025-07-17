@@ -9,30 +9,32 @@ import {
     View,
 } from 'react-native';
 import { COLORS, FONTS, SHADOWS, SIZES } from '../constants/theme';
+import { useTranslation } from 'react-i18next';
 
 const roles = [
   {
     id: 'admin',
-    title: 'Admin',
-    description: 'Manage workers, services, and monitor platform performance',
+    title: 'admin',
+    description: 'role_admin_desc',
     icon: 'shield-checkmark-outline',
   },
   {
     id: 'customer',
-    title: 'Customer',
-    description: 'I want to find and book services',
+    title: 'customer',
+    description: 'role_customer_desc',
     icon: 'person-outline',
   },
   {
     id: 'worker',
-    title: 'Service Provider',
-    description: 'I want to offer my services',
+    title: 'worker',
+    description: 'role_worker_desc',
     icon: 'construct-outline',
   },
 ];
 
 const RoleSelectionScreen = () => {
   const [selectedRole, setSelectedRole] = useState('');
+  const { t } = useTranslation();
 
   const handleContinue = () => {
     if (selectedRole) {
@@ -46,15 +48,26 @@ const RoleSelectionScreen = () => {
     }
   };
 
+  const handleRoleSelect = (roleKey: string) => {
+    setSelectedRole(roleKey);
+    if (roleKey === 'admin') {
+      router.push('/(auth)/admin-login' as any);
+    } else if (roleKey === 'worker') {
+      router.push('/(auth)/worker-login' as any);
+    } else {
+      router.push('/(auth)/login' as any);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Image
-          source={require('../../assets/images/applogo.jpeg')}
+          source={require('../../assets/images/applogo.png')}
           style={styles.logo}
         />
-        <Text style={styles.title}>Choose Your Role</Text>
-        <Text style={styles.subtitle}>Select how you want to use the app</Text>
+        <Text style={styles.title}>{t('role_selection_title')}</Text>
+        <Text style={styles.subtitle}>{t('role_selection_subtitle')}</Text>
       </View>
 
       <View style={styles.rolesContainer}>
@@ -81,9 +94,9 @@ const RoleSelectionScreen = () => {
                   selectedRole === role.id && styles.selectedRoleText,
                 ]}
               >
-                {role.title}
+                {t(role.title)}
               </Text>
-              <Text style={styles.roleDescription}>{role.description}</Text>
+              <Text style={styles.roleDescription}>{t(role.description)}</Text>
             </View>
             {selectedRole === role.id && (
               <Ionicons
@@ -195,22 +208,26 @@ const styles = StyleSheet.create({
     paddingBottom: SIZES.medium,
   },
   button: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.white,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     padding: SIZES.medium,
     borderRadius: SIZES.base,
-    ...SHADOWS.medium,
+    marginBottom: SIZES.small,
+    ...SHADOWS.small,
   },
   buttonDisabled: {
     backgroundColor: COLORS.textSecondary,
     opacity: 0.5,
   },
   buttonText: {
-    color: COLORS.white,
+    color: COLORS.textPrimary,
     fontSize: FONTS.h3.fontSize,
     fontWeight: '600',
+    marginLeft: SIZES.base,
+  },
+  buttonIcon: {
     marginRight: SIZES.base,
   },
 });
