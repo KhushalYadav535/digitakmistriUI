@@ -15,6 +15,10 @@ const services = [
   'electronic',
   'painter',
   'carpenter',
+  'cleaner',
+  'mechanic',
+  'welder',
+  'tailor',
   'handpump mistri',
 ];
 

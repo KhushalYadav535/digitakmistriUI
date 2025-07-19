@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Image, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 import { router } from 'expo-router';
@@ -53,6 +53,36 @@ const services = [
     id: 'handpumpmistri',
     name: 'Handpump Mistri',
     image: require('../../assets/images/handpump.jpg'),
+  },
+  {
+    id: 'carpenter',
+    name: 'Carpenter',
+    image: require('../../assets/images/carpenter.jpeg'),
+    comingSoon: true,
+  },
+  {
+    id: 'cleaner',
+    name: 'Cleaner',
+    image: require('../../assets/images/cleaner.jpeg'),
+    comingSoon: true,
+  },
+  {
+    id: 'mechanic',
+    name: 'Mechanic',
+    image: require('../../assets/images/mechanic.jpeg'),
+    comingSoon: true,
+  },
+  {
+    id: 'welder',
+    name: 'Welder',
+    image: require('../../assets/images/welder.jpeg'),
+    comingSoon: true,
+  },
+  {
+    id: 'tailor',
+    name: 'Tailor',
+    image: require('../../assets/images/tailor.jpeg'),
+    comingSoon: true,
   },
 ];
 
@@ -187,19 +217,56 @@ const TabLayout = () => {
                   style={{ opacity: fadeAnim, transform: [{ scale: fadeAnim }], width: '50%' }}
                 >
                   <TouchableOpacity
-                    style={[styles.serviceCard, { backgroundColor: 'rgba(255,255,255,0.65)', borderWidth: 1, borderColor: '#e0e0e0', shadowColor: '#43C6AC', shadowOpacity: 0.10, shadowRadius: 22, elevation: 6 }]}
-                    onPressIn={() => Animated.spring(fadeAnim, { toValue: 1.08, useNativeDriver: true }).start()}
-                    onPressOut={() => Animated.spring(fadeAnim, { toValue: 1, useNativeDriver: true }).start()}
-                    onPress={() => router.push({ 
-                      pathname: '/service-details', 
-                      params: { serviceId: service.id } 
-                    } as any)}
-                    activeOpacity={0.88}
+                    style={[
+                      styles.serviceCard, 
+                      { 
+                        backgroundColor: service.comingSoon ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.65)', 
+                        borderWidth: 1, 
+                        borderColor: service.comingSoon ? '#ccc' : '#e0e0e0', 
+                        shadowColor: '#43C6AC', 
+                        shadowOpacity: service.comingSoon ? 0.05 : 0.10, 
+                        shadowRadius: 22, 
+                        elevation: service.comingSoon ? 2 : 6 
+                      }
+                    ]}
+                    onPressIn={() => !service.comingSoon && Animated.spring(fadeAnim, { toValue: 1.08, useNativeDriver: true }).start()}
+                    onPressOut={() => !service.comingSoon && Animated.spring(fadeAnim, { toValue: 1, useNativeDriver: true }).start()}
+                    onPress={() => {
+                      if (service.comingSoon) {
+                        Alert.alert('Coming Soon', 'This service will be available soon!');
+                      } else {
+                        router.push({ 
+                          pathname: '/service-details', 
+                          params: { serviceId: service.id } 
+                        } as any);
+                      }
+                    }}
+                    activeOpacity={service.comingSoon ? 1 : 0.88}
                   >
                     <BlurView intensity={30} tint="light" style={[styles.serviceImageWrapper, { borderWidth: 0 }]}>
-                      <Image source={service.image} style={styles.serviceImage} />
+                      <Image 
+                        source={service.image} 
+                        style={[
+                          styles.serviceImage, 
+                          service.comingSoon && { opacity: 0.6 }
+                        ]} 
+                      />
+                      {service.comingSoon && (
+                        <View style={styles.comingSoonOverlay}>
+                          <Text style={styles.comingSoonText}>Coming Soon</Text>
+                        </View>
+                      )}
                     </BlurView>
-                    <Text style={[styles.serviceName, { color: '#191654', fontWeight: 'bold', fontSize: 18 }]}>{service.name}</Text>
+                    <Text style={[
+                      styles.serviceName, 
+                      { 
+                        color: service.comingSoon ? '#999' : '#191654', 
+                        fontWeight: 'bold', 
+                        fontSize: 18 
+                      }
+                    ]}>
+                      {service.name}
+                    </Text>
                   </TouchableOpacity>
                 </Animated.View>
               ))}
@@ -485,6 +552,27 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0
+  },
+  comingSoonOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 18,
+  },
+  comingSoonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
   }
 });
 

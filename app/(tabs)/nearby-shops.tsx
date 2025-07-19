@@ -19,6 +19,8 @@ import * as Location from 'expo-location';
 import { API_URL } from '../constants/config';
 import { COLORS, FONTS, SIZES } from '../constants/theme';
 import { getImageUrl } from '../utils/imageUtils';
+import { useLocalSearchParams } from 'expo-router';
+import { useRef } from 'react';
 
 interface Shop {
   _id: string;
@@ -49,6 +51,9 @@ export default function NearbyShopsScreen() {
     latitude: number;
     longitude: number;
   } | null>(null);
+  const { highlightShopId } = useLocalSearchParams();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
 
   useEffect(() => {
     getLocation();
@@ -59,6 +64,22 @@ export default function NearbyShopsScreen() {
       loadShops();
     }
   }, [userLocation]);
+
+  useEffect(() => {
+    if (highlightShopId && shops.length > 0) {
+      // Find index of the shop to highlight
+      const idx = shops.findIndex(s => s._id === highlightShopId);
+      if (idx !== -1 && scrollViewRef.current) {
+        setHighlightedId(highlightShopId as string);
+        // Scroll to the shop card
+        setTimeout(() => {
+          scrollViewRef.current?.scrollTo({ y: idx * 260, animated: true });
+        }, 300);
+        // Remove highlight after 4 seconds
+        setTimeout(() => setHighlightedId(null), 4000);
+      }
+    }
+  }, [highlightShopId, shops]);
 
   const getLocation = async () => {
     try {
@@ -157,6 +178,7 @@ export default function NearbyShopsScreen() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
+        ref={scrollViewRef}
       >
         {shops.length === 0 ? (
           <View style={styles.emptyContainer}>
@@ -164,7 +186,10 @@ export default function NearbyShopsScreen() {
           </View>
         ) : (
           shops.map(shop => (
-            <View key={shop._id} style={styles.shopCard}>
+            <View
+              key={shop._id}
+              style={[styles.shopCard, highlightedId === shop._id && styles.highlightedShopCard]}
+            >
               {shop.images && shop.images.length > 0 && (
                 <Image
                   source={{ uri: getImageUrl(shop.images[0]) }}
@@ -381,5 +406,13 @@ const styles = StyleSheet.create({
     marginLeft: SIZES.base / 2,
     fontSize: FONTS.body4.fontSize,
     fontWeight: '500'
-  }
+  },
+  highlightedShopCard: {
+    borderWidth: 2,
+    borderColor: COLORS.success,
+    shadowColor: COLORS.success,
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 6,
+  },
 }); 

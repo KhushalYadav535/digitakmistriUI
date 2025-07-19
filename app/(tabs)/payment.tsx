@@ -10,7 +10,7 @@ import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import { API_URL } from '../constants/config';
 
 const PaymentScreen = () => {
-  const { serviceTitle, servicePrice, serviceId, bookingData } = useLocalSearchParams();
+  const { serviceTitle, servicePrice, serviceId, bookingData, customFlow, shopData } = useLocalSearchParams();
   const upiId = '9554585320@airtel';
   const payeeName = 'Anubhav Gupta';
   const upiUri = `upi://pay?pa=${upiId}&pn=${payeeName}&am=${servicePrice}&cu=INR`;
@@ -103,25 +103,79 @@ const PaymentScreen = () => {
   };
 
   const handlePaymentSuccess = async () => {
-    if (!bookingId) {
+    // If this is the addNearbyShop flow, submit the shop data to backend
+    if (customFlow === 'addNearbyShop' && shopData) {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        if (!token) {
+          Alert.alert('Error', 'Please login to continue');
+          router.push('/(auth)/login' as any);
+          return;
+        }
+        const parsedShopData = JSON.parse(shopData as string);
+        const formData = new FormData();
+        formData.append('name', parsedShopData.name);
+        formData.append('description', parsedShopData.description);
+        formData.append('phone', parsedShopData.phone);
+        formData.append('email', parsedShopData.email);
+        formData.append('address', JSON.stringify(parsedShopData.address));
+        formData.append('location', JSON.stringify(parsedShopData.location));
+        formData.append('services', JSON.stringify(parsedShopData.services));
+        formData.append('workingHours', JSON.stringify(parsedShopData.workingHours));
+        if (parsedShopData.image) {
+          const uriParts = parsedShopData.image.split('.');
+          const fileType = uriParts[uriParts.length - 1];
+          formData.append('image', {
+            uri: parsedShopData.image,
+            type: `image/${fileType}`,
+            name: `photo.${fileType}`,
+          } as any);
+        }
+        const response = await axios.post(
+          `${API_URL}/nearby-shops/customer`,
+          formData,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'multipart/form-data',
+            },
+          }
+        );
+        if (response.status === 201) {
+          Alert.alert('Success', 'Nearby shop added successfully!');
+          router.replace({
+            pathname: '/(tabs)/nearby-shops',
+            params: { highlightShopId: response.data._id }
+          });
+          return;
+        } else {
+          throw new Error('Failed to add shop');
+        }
+      } catch (err) {
+        Alert.alert('Error', 'Failed to add nearby shop. Please contact support.');
+        return;
+      }
+    }
+    if (!bookingId && !customFlow) {
       Alert.alert('Error', 'No booking found. Please try again.');
       return;
     }
-
-    Alert.alert(
-      'Payment Confirmation',
-      'Please confirm that you have completed the payment.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm',
-          onPress: () => router.replace({
-            pathname: '/(tabs)/booking-status/[id]' as any,
-            params: { id: bookingId },
-          }),
-        },
-      ]
-    );
+    if (!customFlow) {
+      Alert.alert(
+        'Payment Confirmation',
+        'Please confirm that you have completed the payment.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Confirm',
+            onPress: () => router.replace({
+              pathname: '/(tabs)/booking-status/[id]' as any,
+              params: { id: bookingId },
+            }),
+          },
+        ]
+      );
+    }
   };
   
   const handleCashOnDelivery = async () => {
@@ -145,6 +199,51 @@ const PaymentScreen = () => {
   };
 
   const handlePayNow = async (paymentMethod: string) => {
+    if (customFlow === 'addNearbyShop') {
+      // Just open the UPI app, do NOT call createBooking
+      let deepLink = upiUri;
+      if (paymentMethod === 'gpay') deepLink = `googlepay://upi/pay?pa=${upiId}&pn=${payeeName}&am=${servicePrice}&cu=INR`;
+      if (paymentMethod === 'phonepe') deepLink = `phonepe://pay?pa=${upiId}&pn=${payeeName}&am=${servicePrice}&cu=INR`;
+      if (paymentMethod === 'paytm') deepLink = `paytmmp://pay?pa=${upiId}&pn=${payeeName}&am=${servicePrice}&cu=INR`;
+      if (paymentMethod === 'bhim') deepLink = `bhim://upi/pay?pa=${upiId}&pn=${payeeName}&am=${servicePrice}&cu=INR`;
+      if (paymentMethod === 'amazonpay') deepLink = `amazonpay://upi/pay?pa=${upiId}&pn=${payeeName}&am=${servicePrice}&cu=INR`;
+
+      Alert.alert(
+        'Opening Payment App',
+        'Opening UPI app...',
+        [{ text: 'OK' }]
+      );
+
+      Linking.canOpenURL(deepLink).then((supported) => {
+        if (supported) {
+          Linking.openURL(deepLink);
+          setTimeout(() => {
+            Alert.alert(
+              'Payment Status',
+              'Did you complete the payment?',
+              [
+                { text: 'No, I need help', style: 'cancel' },
+                { text: 'Yes, I paid', onPress: () => handlePaymentSuccess() },
+              ]
+            );
+          }, 30000);
+        } else {
+          // fallback to UPI URI
+          Linking.openURL(upiUri);
+          setTimeout(() => {
+            Alert.alert(
+              'Payment Status',
+              'Did you complete the payment?',
+              [
+                { text: 'No, I need help', style: 'cancel' },
+                { text: 'Yes, I paid', onPress: () => handlePaymentSuccess() },
+              ]
+            );
+          }, 30000);
+        }
+      });
+      return;
+    }
     // Create booking first
     const newBookingId = await createBooking('online');
     if (!newBookingId) {
@@ -290,79 +389,119 @@ const PaymentScreen = () => {
         <Text style={styles.servicePrice}>Total Amount: ₹{servicePrice}</Text>
       </View>
 
-      {/* Pay Now Section */}
-      <View style={styles.paymentCard}>
-        <Text style={styles.sectionTitle}>Pay Now</Text>
-        <Text style={styles.sectionSubtitle}>Choose your preferred payment app</Text>
-        
-        <View style={styles.paymentAppsContainer}>
-          {paymentApps.map((app) => {
-            const isInstalled = installedApps.includes(app.id);
-            return (
-              <TouchableOpacity
-                key={app.id}
-                style={[
-                  styles.paymentAppButton, 
-                  { 
-                    backgroundColor: isInstalled ? app.color : COLORS.lightGray,
-                    opacity: isInstalled ? 1 : 0.6
-                  }
-                ]}
-                onPress={() => isInstalled ? handlePayNow(app.id) : handleInstallApp(app.id)}
-                disabled={false}
-              >
-                <Ionicons 
-                  name={app.icon as any} 
-                  size={24} 
-                  color={isInstalled ? COLORS.white : COLORS.gray} 
-                />
-                <Text style={[
-                  styles.paymentAppText,
-                  { color: isInstalled ? COLORS.white : COLORS.gray }
-                ]}>
-                  {app.name}
-                </Text>
-                {!isInstalled && (
-                  <Text style={styles.notInstalledText}>Not Installed</Text>
-                )}
-              </TouchableOpacity>
-            );
-          })}
+      {/* Custom payment UI for addNearbyShop */}
+      {customFlow === 'addNearbyShop' ? (
+        <View style={styles.shopPaymentCard}>
+          <Text style={styles.shopPaymentTitle}>Pay for Shop Listing</Text>
+          <View style={styles.shopPaymentOptions}>
+            <TouchableOpacity style={styles.shopPaymentOption} onPress={() => handlePayNow('upi')} activeOpacity={0.85}>
+              <Ionicons name="logo-google" size={28} color="#4285F4" style={{ marginRight: 12 }} />
+              <View>
+                <Text style={styles.shopPaymentLabel}>UPI Payment</Text>
+                <Text style={styles.shopPaymentDesc}>Pay securely using any UPI app</Text>
+              </View>
+              <View style={styles.shopPaymentAmountBox}>
+                <Text style={styles.shopPaymentAmount}>₹{servicePrice}</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.shopPaymentQrSection}>
+            <Text style={styles.shopPaymentQrLabel}>Or scan QR code</Text>
+            <View style={styles.qrContainer}>
+              <QRCode
+                value={upiUri}
+                size={160}
+                logo={require('../../assets/images/applogo.png')}
+                logoSize={32}
+                logoBackgroundColor='white'
+              />
+            </View>
+            <TouchableOpacity style={styles.copyButton} onPress={copyToClipboard}>
+              <Text style={styles.upiId}>{upiId}</Text>
+              <Ionicons name="copy-outline" size={20} color={COLORS.primary} />
+            </TouchableOpacity>
+          </View>
         </View>
-
-        <TouchableOpacity 
-          style={styles.payNowButton} 
-          onPress={() => handlePayNow('upi')}
-        >
-          <Ionicons name="card" size={24} color={COLORS.white} />
-          <Text style={styles.payNowButtonText}>Pay Now with UPI</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.paymentCard}>
-        <Text style={styles.sectionTitle}>QR Code Payment</Text>
-        <View style={styles.qrContainer}>
-          <QRCode
-            value={upiUri}
-            size={200}
-            logo={require('../../assets/images/applogo.png')}
-            logoSize={40}
-            logoBackgroundColor='white'
-          />
+      ) : (
+        // ... existing code for normal bookings ...
+        <View style={styles.paymentCard}>
+          <Text style={styles.sectionTitle}>Pay Now</Text>
+          <Text style={styles.sectionSubtitle}>Choose your preferred payment app</Text>
+          <View style={styles.paymentAppsContainer}>
+            {paymentApps.map((app) => {
+              const isInstalled = installedApps.includes(app.id);
+              return (
+                <TouchableOpacity
+                  key={app.id}
+                  style={[
+                    styles.paymentAppButton, 
+                    { 
+                      backgroundColor: isInstalled ? app.color : COLORS.lightGray,
+                      opacity: isInstalled ? 1 : 0.6
+                    }
+                  ]}
+                  onPress={() => isInstalled ? handlePayNow(app.id) : handleInstallApp(app.id)}
+                  disabled={false}
+                >
+                  <Ionicons 
+                    name={app.icon as any} 
+                    size={24} 
+                    color={isInstalled ? COLORS.white : COLORS.gray} 
+                  />
+                  <Text style={[
+                    styles.paymentAppText,
+                    { color: isInstalled ? COLORS.white : COLORS.gray }
+                  ]}>
+                    {app.name}
+                  </Text>
+                  {!isInstalled && (
+                    <Text style={styles.notInstalledText}>Not Installed</Text>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          <TouchableOpacity 
+            style={styles.payNowButton} 
+            onPress={() => handlePayNow('upi')}
+          >
+            <Ionicons name="card" size={24} color={COLORS.white} />
+            <Text style={styles.payNowButtonText}>Pay Now with UPI</Text>
+          </TouchableOpacity>
         </View>
-        <Text style={styles.upiIdText}>Pay to: {payeeName}</Text>
-        <TouchableOpacity style={styles.copyButton} onPress={copyToClipboard}>
-          <Text style={styles.upiId}>{upiId}</Text>
-          <Ionicons name="copy-outline" size={20} color={COLORS.primary} />
-        </TouchableOpacity>
-      </View>
+      )}
+
+      {/* QR and other options for normal bookings remain unchanged */}
+      {(!customFlow || customFlow !== 'addNearbyShop') && (
+        <>
+          <View style={styles.paymentCard}>
+            <Text style={styles.sectionTitle}>QR Code Payment</Text>
+            <View style={styles.qrContainer}>
+              <QRCode
+                value={upiUri}
+                size={200}
+                logo={require('../../assets/images/applogo.png')}
+                logoSize={40}
+                logoBackgroundColor='white'
+              />
+            </View>
+            <Text style={styles.upiIdText}>Pay to: {payeeName}</Text>
+            <TouchableOpacity style={styles.copyButton} onPress={copyToClipboard}>
+              <Text style={styles.upiId}>{upiId}</Text>
+              <Ionicons name="copy-outline" size={20} color={COLORS.primary} />
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
       
       <View style={styles.paymentCard}>
         <Text style={styles.sectionTitle}>Other Options</Text>
-        <TouchableOpacity style={styles.codButton} onPress={handleCashOnDelivery}>
-          <Ionicons name="cash-outline" size={24} color={COLORS.success} />
-          <Text style={styles.codButtonText}>Cash on Delivery</Text>
-        </TouchableOpacity>
+        {(!customFlow || customFlow !== 'addNearbyShop') && (
+          <TouchableOpacity style={styles.codButton} onPress={handleCashOnDelivery}>
+            <Ionicons name="cash-outline" size={24} color={COLORS.success} />
+            <Text style={styles.codButtonText}>Cash on Delivery</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </ScrollView>
   );
@@ -517,6 +656,66 @@ const styles = StyleSheet.create({
     marginTop: SIZES.small,
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  shopPaymentCard: {
+    ...SHADOWS.medium,
+    backgroundColor: COLORS.white,
+    borderRadius: SIZES.radius,
+    padding: SIZES.large,
+    marginHorizontal: SIZES.medium,
+    marginBottom: SIZES.medium,
+    alignItems: 'center',
+  },
+  shopPaymentTitle: {
+    fontSize: FONTS.h4.fontSize,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+    marginBottom: SIZES.medium,
+    textAlign: 'center',
+  },
+  shopPaymentOptions: {
+    width: '100%',
+    marginBottom: SIZES.large,
+  },
+  shopPaymentOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: SIZES.medium,
+    paddingHorizontal: SIZES.small,
+    borderRadius: SIZES.radius,
+    backgroundColor: COLORS.lightGray,
+    marginBottom: SIZES.small,
+  },
+  shopPaymentLabel: {
+    fontSize: FONTS.body2.fontSize,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+  },
+  shopPaymentDesc: {
+    fontSize: FONTS.body4.fontSize,
+    color: COLORS.textSecondary,
+    marginTop: SIZES.small,
+  },
+  shopPaymentAmountBox: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: SIZES.small,
+    paddingHorizontal: SIZES.medium,
+    borderRadius: SIZES.radius,
+  },
+  shopPaymentAmount: {
+    fontSize: FONTS.h4.fontSize,
+    fontWeight: 'bold',
+    color: COLORS.white,
+  },
+  shopPaymentQrSection: {
+    alignItems: 'center',
+    marginTop: SIZES.large,
+  },
+  shopPaymentQrLabel: {
+    fontSize: FONTS.body3.fontSize,
+    color: COLORS.textSecondary,
+    marginBottom: SIZES.small,
   },
 });
 

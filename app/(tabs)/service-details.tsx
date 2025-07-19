@@ -261,6 +261,81 @@ const serviceDetails = {
       },
     ],
   },
+  carpenter: {
+    name: 'Carpenter',
+    description: 'Professional carpentry and woodwork services',
+    image: require('../../assets/images/carpenter.jpeg'),
+    icon: 'hammer-outline' as const,
+    comingSoon: true,
+    services: [
+      {
+        title: 'Coming Soon',
+        subtitle: 'This service will be available soon',
+        price: 'TBD',
+        charges: 'Stay tuned for updates',
+      },
+    ],
+  },
+  cleaner: {
+    name: 'Cleaner',
+    description: 'Professional cleaning and maintenance services',
+    image: require('../../assets/images/cleaner.jpeg'),
+    icon: 'brush-outline' as const,
+    comingSoon: true,
+    services: [
+      {
+        title: 'Coming Soon',
+        subtitle: 'This service will be available soon',
+        price: 'TBD',
+        charges: 'Stay tuned for updates',
+      },
+    ],
+  },
+  mechanic: {
+    name: 'Mechanic',
+    description: 'Professional automotive repair and maintenance',
+    image: require('../../assets/images/mechanic.jpeg'),
+    icon: 'construct-outline' as const,
+    comingSoon: true,
+    services: [
+      {
+        title: 'Coming Soon',
+        subtitle: 'This service will be available soon',
+        price: 'TBD',
+        charges: 'Stay tuned for updates',
+      },
+    ],
+  },
+  welder: {
+    name: 'Welder',
+    description: 'Professional welding and metal fabrication services',
+    image: require('../../assets/images/welder.jpeg'),
+    icon: 'flame-outline' as const,
+    comingSoon: true,
+    services: [
+      {
+        title: 'Coming Soon',
+        subtitle: 'This service will be available soon',
+        price: 'TBD',
+        charges: 'Stay tuned for updates',
+      },
+    ],
+  },
+  tailor: {
+    name: 'Tailor',
+    description: 'Professional tailoring and garment services',
+    image: require('../../assets/images/tailor.jpeg'),
+    icon: 'cut-outline' as const,
+    comingSoon: true,
+    services: [
+      {
+        title: 'Coming Soon',
+        subtitle: 'This service will be available soon',
+        price: 'TBD',
+        charges: 'Stay tuned for updates',
+      },
+    ],
+  },
 };
 
 const ServiceDetailScreen = () => {

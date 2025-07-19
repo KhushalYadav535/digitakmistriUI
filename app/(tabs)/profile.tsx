@@ -179,6 +179,15 @@ const ProfileScreen = () => {
       </View>
       
       <View style={styles.menuContainer}>
+        <TouchableOpacity
+          style={[styles.menuItem]}
+          onPress={() => router.push('/add-nearby-shop')}
+        >
+          <View style={styles.menuItemLeft}>
+            <Ionicons name="add-circle-outline" size={24} color={COLORS.primary} />
+            <Text style={styles.menuItemText}>Add Nearby Shop</Text>
+          </View>
+        </TouchableOpacity>
         {menuItems.map((item) => (
           <TouchableOpacity
             key={item.id}

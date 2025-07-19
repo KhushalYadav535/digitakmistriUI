@@ -23,6 +23,7 @@ declare global {
       "/worker-notifications": undefined;
       "/worker-settings": undefined;
       "/help-support": undefined;
+      "/add-nearby-shop": undefined;
     }
   }
 }

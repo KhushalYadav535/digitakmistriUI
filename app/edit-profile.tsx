@@ -1,12 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState, useEffect } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View, Alert, TextInput, Image, ActivityIndicator } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View, Alert, TextInput, ActivityIndicator } from 'react-native';
 import { COLORS, FONTS, SHADOWS, SIZES } from './constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from './constants/config';
 import axios from 'axios';
 import * as ImagePicker from 'expo-image-picker';
+import OptimizedImage from './components/OptimizedImage';
 
 const CustomerEditProfileScreen = () => {
   const [formData, setFormData] = useState({
@@ -250,9 +251,13 @@ const CustomerEditProfileScreen = () => {
             {imageUploading ? (
               <ActivityIndicator size="large" color={COLORS.primary} />
             ) : (
-              <Image
-                source={{ uri: formData.profileImage || 'https://via.placeholder.com/100' }}
-                style={{ width: 90, height: 90, borderRadius: 45, borderWidth: 2, borderColor: COLORS.primary, backgroundColor: '#eee' }}
+              <OptimizedImage
+                uri={formData.profileImage || 'https://via.placeholder.com/100'}
+                size="medium"
+                width={90}
+                height={90}
+                style={{ borderRadius: 45, borderWidth: 2, borderColor: COLORS.primary, backgroundColor: '#eee' }}
+                resizeMode="cover"
               />
             )}
             <View style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: COLORS.primary, borderRadius: 12, padding: 4 }}>

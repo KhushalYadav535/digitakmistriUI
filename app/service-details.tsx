@@ -271,6 +271,81 @@ const serviceMeta = {
             },
         ],
     },
+    carpenter: {
+        name: 'Carpenter',
+        description: 'Professional carpentry and woodwork services',
+        icon: <MaterialCommunityIcons name="hammer-wrench" size={36} color="#8B4513" />,
+        color: '#F5DEB3',
+        comingSoon: true,
+        services: [
+            {
+                title: 'Coming Soon',
+                subtitle: 'This service will be available soon',
+                price: 'TBD',
+                extra: 'Stay tuned for updates',
+            },
+        ],
+    },
+    cleaner: {
+        name: 'Cleaner',
+        description: 'Professional cleaning and maintenance services',
+        icon: <MaterialCommunityIcons name="broom" size={36} color="#4169E1" />,
+        color: '#E6F3FF',
+        comingSoon: true,
+        services: [
+            {
+                title: 'Coming Soon',
+                subtitle: 'This service will be available soon',
+                price: 'TBD',
+                extra: 'Stay tuned for updates',
+            },
+        ],
+    },
+    mechanic: {
+        name: 'Mechanic',
+        description: 'Professional automotive repair and maintenance',
+        icon: <MaterialCommunityIcons name="wrench" size={36} color="#FF4500" />,
+        color: '#FFE4E1',
+        comingSoon: true,
+        services: [
+            {
+                title: 'Coming Soon',
+                subtitle: 'This service will be available soon',
+                price: 'TBD',
+                extra: 'Stay tuned for updates',
+            },
+        ],
+    },
+    welder: {
+        name: 'Welder',
+        description: 'Professional welding and metal fabrication services',
+        icon: <MaterialCommunityIcons name="fire" size={36} color="#FFD700" />,
+        color: '#FFFACD',
+        comingSoon: true,
+        services: [
+            {
+                title: 'Coming Soon',
+                subtitle: 'This service will be available soon',
+                price: 'TBD',
+                extra: 'Stay tuned for updates',
+            },
+        ],
+    },
+    tailor: {
+        name: 'Tailor',
+        description: 'Professional tailoring and garment services',
+        icon: <MaterialCommunityIcons name="scissors-cutting" size={36} color="#32CD32" />,
+        color: '#F0FFF0',
+        comingSoon: true,
+        services: [
+            {
+                title: 'Coming Soon',
+                subtitle: 'This service will be available soon',
+                price: 'TBD',
+                extra: 'Stay tuned for updates',
+            },
+        ],
+    },
 };
 
 (Object.keys(serviceMeta) as (keyof typeof serviceMeta)[]).forEach(key => {
@@ -439,43 +514,65 @@ const ServiceDetailsScreen = () => {
                 </View>
 
                 <View style={styles.servicesSection}>
-                    <Text style={styles.servicesSectionTitle}>Available Services</Text>
-                    {service.services.length === 0 && (
-                        <Text style={{ color: COLORS.textSecondary, marginTop: 10 }}>No services listed.</Text>
-                    )}
-                    {service.services.map((item, idx) => (
-                        <View key={idx} style={styles.serviceItemContainer}>
-                            <TouchableOpacity 
-                                style={[
-                                    styles.subServiceCard,
-                                    bookedServices.includes(item.title) && styles.bookedServiceCard
-                                ]} 
-                                onPress={() => handleServicePress(item.title)}
-                            >
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.subServiceTitle}>{item.title}</Text>
-                                    <Text style={styles.subServiceSubtitle}>{item.subtitle}</Text>
-                                    <Text style={styles.subServicePrice}>{item.price}</Text>
-                                    {item.extra ? (
-                                        <Text style={styles.subServiceExtra}>{item.extra}</Text>
-                                    ) : null}
-                                    {bookedServices.includes(item.title) && (
-                                        <Text style={styles.bookedText}>Already Booked</Text>
+                    <Text style={styles.servicesSectionTitle}>
+                        {(service as any).comingSoon ? 'Coming Soon' : 'Available Services'}
+                    </Text>
+                    {(service as any).comingSoon ? (
+                        <View style={styles.comingSoonContainer}>
+                            <View style={styles.comingSoonCard}>
+                                <Ionicons name="time-outline" size={48} color={COLORS.textSecondary} />
+                                <Text style={styles.comingSoonTitle}>Coming Soon!</Text>
+                                <Text style={styles.comingSoonDescription}>
+                                    This service will be available soon. Stay tuned for updates!
+                                </Text>
+                                <TouchableOpacity 
+                                    style={styles.notifyButton}
+                                    onPress={() => Alert.alert('Notification', 'You will be notified when this service becomes available!')}
+                                >
+                                    <Text style={styles.notifyButtonText}>Notify Me</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    ) : (
+                        <>
+                            {service.services.length === 0 && (
+                                <Text style={{ color: COLORS.textSecondary, marginTop: 10 }}>No services listed.</Text>
+                            )}
+                            {service.services.map((item, idx) => (
+                                <View key={idx} style={styles.serviceItemContainer}>
+                                    <TouchableOpacity 
+                                        style={[
+                                            styles.subServiceCard,
+                                            bookedServices.includes(item.title) && styles.bookedServiceCard
+                                        ]} 
+                                        onPress={() => handleServicePress(item.title)}
+                                    >
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.subServiceTitle}>{item.title}</Text>
+                                            <Text style={styles.subServiceSubtitle}>{item.subtitle}</Text>
+                                            <Text style={styles.subServicePrice}>{item.price}</Text>
+                                            {item.extra ? (
+                                                <Text style={styles.subServiceExtra}>{item.extra}</Text>
+                                            ) : null}
+                                            {bookedServices.includes(item.title) && (
+                                                <Text style={styles.bookedText}>Already Booked</Text>
+                                            )}
+                                        </View>
+                                        <Ionicons name="chevron-forward" size={24} color={COLORS.textSecondary} />
+                                    </TouchableOpacity>
+                                    
+                                    {!bookedServices.includes(item.title) && (
+                                        <TouchableOpacity 
+                                            style={styles.addButton}
+                                            onPress={() => handleAddService(item)}
+                                        >
+                                            <Ionicons name="add" size={20} color={COLORS.white} />
+                                        </TouchableOpacity>
                                     )}
                                 </View>
-                                <Ionicons name="chevron-forward" size={24} color={COLORS.textSecondary} />
-                            </TouchableOpacity>
-                            
-                            {!bookedServices.includes(item.title) && (
-                                <TouchableOpacity 
-                                    style={styles.addButton}
-                                    onPress={() => handleAddService(item)}
-                                >
-                                    <Ionicons name="add" size={20} color={COLORS.white} />
-                                </TouchableOpacity>
-                            )}
-                        </View>
-                    ))}
+                            ))}
+                        </>
+                    )}
                 </View>
             </ScrollView>
 
@@ -789,6 +886,45 @@ const styles = StyleSheet.create({
         color: COLORS.white,
         fontSize: 16,
         fontWeight: 'bold',
+    },
+    comingSoonContainer: {
+        alignItems: 'center',
+        paddingVertical: 20,
+    },
+    comingSoonCard: {
+        backgroundColor: COLORS.background,
+        borderRadius: 16,
+        padding: 24,
+        alignItems: 'center',
+        width: '100%',
+        borderWidth: 2,
+        borderColor: '#e0e0e0',
+        borderStyle: 'dashed',
+    },
+    comingSoonTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: COLORS.textPrimary,
+        marginTop: 12,
+        marginBottom: 8,
+    },
+    comingSoonDescription: {
+        fontSize: 14,
+        color: COLORS.textSecondary,
+        textAlign: 'center',
+        marginBottom: 20,
+        lineHeight: 20,
+    },
+    notifyButton: {
+        backgroundColor: COLORS.primary,
+        borderRadius: 8,
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+    },
+    notifyButtonText: {
+        color: COLORS.white,
+        fontSize: 14,
+        fontWeight: '600',
     },
 });
 
