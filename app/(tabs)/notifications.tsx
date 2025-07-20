@@ -6,7 +6,7 @@ import Card from '../../components/Card';
 import { COLORS, FONTS, SHADOWS, SIZES } from '../../constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-const API_URL = 'http://192.168.1.3:5000/api';
+import { API_URL } from '../constants/config';
 
 interface Notification {
   id: string;

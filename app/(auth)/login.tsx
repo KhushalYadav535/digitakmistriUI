@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StyleSheet, Text, TouchableOpacity, View, ImageBackground, Dimensions, Alert, ScrollView, Image, TextInput } from 'react-native';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -73,7 +74,35 @@ const LoginScreen = () => {
       // The AuthContext will handle the routing automatically
       // No need to manually redirect here
     } catch (error: any) {
-      setError(error.response?.data?.message || t('please_check_credentials_and_try_again'));
+      console.error('Login error:', error);
+      
+      // Check if user needs email verification
+      if (error.response?.data?.requiresVerification) {
+        const userData = error.response.data.user;
+        
+        // Store user data for verification
+        await AsyncStorage.setItem('pendingVerification', JSON.stringify({
+          email: email.trim().toLowerCase(),
+          user: userData
+        }));
+        
+        Alert.alert(
+          'Email Verification Required',
+          'Please verify your email address before logging in.',
+          [
+            {
+              text: 'Verify Email',
+              onPress: () => router.push('/email-verification' as any)
+            },
+            {
+              text: 'OK',
+              style: 'cancel'
+            }
+          ]
+        );
+      } else {
+        setError(error.response?.data?.message || t('please_check_credentials_and_try_again'));
+      }
     } finally {
       setLoading(false);
     }

@@ -18,39 +18,178 @@ import { COLORS } from '../constants/theme';
 import { API_URL } from '../constants/config';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { clearServicePriceCache } from '../utils/serviceUtils';
 
-interface Service {
-  _id: string;
+// Service data that matches what customers see
+interface ServiceMetaItem {
   name: string;
   description: string;
-  rate: number;
-  category: string;
+  services: { title: string; price: string }[];
+  comingSoon?: boolean;
+}
+
+const serviceMeta: Record<string, ServiceMetaItem> = {
+  plumber: {
+    name: 'Plumber',
+    description: 'Professional plumbing services for your home and office',
+    services: [
+      { title: 'Basin Set Fitting/Repair', price: '₹200' },
+      { title: 'Flush Tank Service', price: '₹300' },
+      { title: 'Wiring Related Repair', price: '₹250' },
+      { title: 'Toti Installation', price: '₹50' },
+    ],
+  },
+  electrician: {
+    name: 'Electrician',
+    description: 'Professional electrical services for your home and office',
+    services: [
+      { title: 'Switchbox Installation', price: '₹150' },
+      { title: 'AC Switchbox Installation', price: '₹250' },
+      { title: 'Wifi Smart Switch Installation', price: '₹300' },
+      { title: 'Switchboard/Switch Repair', price: '₹50' },
+      { title: 'Fan Installation/Uninstallation', price: '₹100' },
+      { title: 'Fan Regulator Repair/Replacement', price: '₹100' },
+      { title: 'Tubelight/Bulb Holder Installation', price: '₹100' },
+      { title: 'Single-pole MCB Installation', price: '₹150' },
+      { title: 'Double-pole MCB Installation', price: '₹200' },
+      { title: 'MCB/Fuse Replacement', price: '₹200' },
+      { title: 'Submeter Installation', price: '₹200' },
+      { title: 'Inverter Installation/Uninstallation', price: '₹300' },
+      { title: 'Stabilizer Installation/Uninstallation', price: '₹200' },
+    ],
+  },
+  electronics: {
+    name: 'Electronics',
+    description: 'Home appliance and electronics repair/installation',
+    services: [
+      { title: 'Solar Panel Installation', price: '₹250' },
+      { title: 'TV Installation/Uninstallation', price: '₹300' },
+      { title: 'Fridge Service', price: '₹300' },
+      { title: 'Fridge Gas Changing', price: '₹1500' },
+      { title: 'AC Installation', price: '₹1500' },
+      { title: 'AC Service', price: '₹600' },
+      { title: 'Gas Geyser', price: '₹300' },
+      { title: 'Washing Machine', price: '₹500' },
+      { title: 'RO Service', price: '₹400' },
+      { title: 'AC Gas Changing', price: '₹3500' },
+    ],
+  },
+  handpump: {
+    name: 'Handpump',
+    description: 'Handpump installation and repair',
+    services: [
+      { title: 'Dhol Fitting (6 No.)', price: '₹200' },
+      { title: 'Chakbal Fitting (6 No.)', price: '₹200' },
+      { title: 'Section Fitting (6 No.)', price: '₹400' },
+      { title: 'New Tullu Fitting (6 No.)', price: '₹400' },
+      { title: 'Chakri Setting (6 No.)', price: '₹400' },
+      { title: '1.25 inch Coupling Fitting (6 No.)', price: '₹400' },
+      { title: 'India Mark 2 Chain Fitting', price: '₹300' },
+      { title: 'Bearing Fitting', price: '₹300' },
+      { title: 'Dhura Fitting', price: '₹300' },
+      { title: 'Packing Fitting', price: '₹300' },
+    ],
+  },
+  carpenter: {
+    name: 'Carpenter',
+    description: 'Professional carpentry and woodwork services',
+    comingSoon: true,
+    services: [
+      { title: 'Coming Soon', price: 'TBD' },
+    ],
+  },
+  cleaner: {
+    name: 'Cleaner',
+    description: 'Professional cleaning and maintenance services',
+    comingSoon: true,
+    services: [
+      { title: 'Coming Soon', price: 'TBD' },
+    ],
+  },
+  mechanic: {
+    name: 'Mechanic',
+    description: 'Professional automotive repair and maintenance',
+    comingSoon: true,
+    services: [
+      { title: 'Coming Soon', price: 'TBD' },
+    ],
+  },
+  welder: {
+    name: 'Welder',
+    description: 'Professional welding and metal fabrication services',
+    comingSoon: true,
+    services: [
+      { title: 'Coming Soon', price: 'TBD' },
+    ],
+  },
+  tailor: {
+    name: 'Tailor',
+    description: 'Professional tailoring and garment services',
+    comingSoon: true,
+    services: [
+      { title: 'Coming Soon', price: 'TBD' },
+    ],
+  },
+};
+
+interface ServiceItem {
+  serviceType: string;
+  serviceName: string;
+  serviceTitle: string;
+  price: string;
   isActive: boolean;
 }
 
 const ServicesScreen = () => {
-  const [services, setServices] = useState<Service[]>([]);
+  const [services, setServices] = useState<ServiceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
-  const [modalVisible, setModalVisible] = useState(false);
-  const [newService, setNewService] = useState({
-    name: '',
-    description: '',
-    rate: '',
-    category: 'General',
-  });
-  const [addingService, setAddingService] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [selectedService, setSelectedService] = useState<ServiceItem | null>(null);
+  const [editPrice, setEditPrice] = useState('');
+  const [updating, setUpdating] = useState(false);
 
   const fetchServices = async () => {
     try {
       setLoading(true);
       setError('');
+      
+      // Fetch service prices from database
       const token = await AsyncStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/admin/services`, {
-        headers: { Authorization: `Bearer ${token}` },
+      let servicePrices: any[] = [];
+      
+      try {
+        const response = await axios.get(`${API_URL}/admin/service-prices`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        servicePrices = response.data;
+      } catch (err) {
+        console.log('No service prices found in database, using defaults');
+      }
+      
+      // Create services list from serviceMeta and merge with database prices
+      const servicesList: ServiceItem[] = [];
+      
+      Object.entries(serviceMeta).forEach(([serviceType, serviceData]) => {
+        serviceData.services.forEach((service) => {
+          // Find if there's a custom price in the database
+          const customPrice = servicePrices.find(
+            sp => sp.serviceType === serviceType && sp.serviceTitle === service.title
+          );
+          
+          servicesList.push({
+            serviceType,
+            serviceName: serviceData.name,
+            serviceTitle: service.title,
+            price: customPrice ? `₹${customPrice.price}` : service.price,
+            isActive: !serviceData.comingSoon,
+          });
+        });
       });
-      setServices(response.data);
+      
+      setServices(servicesList);
     } catch (err: any) {
       console.error('Error fetching services:', err);
       setError('Failed to load services');
@@ -69,89 +208,130 @@ const ServicesScreen = () => {
     fetchServices();
   }, []);
 
-  const addNewService = async () => {
-    if (!newService.name.trim() || !newService.rate.trim()) {
-      Alert.alert('Error', 'Name and rate are required');
+  const handleEditService = (service: ServiceItem) => {
+    setSelectedService(service);
+    setEditPrice(service.price.replace('₹', ''));
+    setEditModalVisible(true);
+  };
+
+  const handleDeleteService = (service: ServiceItem) => {
+    setSelectedService(service);
+    setDeleteModalVisible(true);
+  };
+
+  const updateServicePrice = async () => {
+    if (!selectedService || !editPrice.trim()) {
+      Alert.alert('Error', 'Please enter a valid price');
       return;
     }
 
-    const rate = parseFloat(newService.rate);
-    if (isNaN(rate) || rate <= 0) {
-      Alert.alert('Error', 'Please enter a valid rate');
+    const price = parseFloat(editPrice);
+    if (isNaN(price) || price <= 0) {
+      Alert.alert('Error', 'Please enter a valid price');
       return;
     }
 
     try {
-      setAddingService(true);
+      setUpdating(true);
+      
       const token = await AsyncStorage.getItem('token');
-      const response = await axios.post(
-        `${API_URL}/admin/services`,
-        {
-          name: newService.name.trim(),
-          description: newService.description.trim(),
-          rate: rate,
-          category: newService.category,
-        },
+      const response = await axios.put(
+        `${API_URL}/admin/services/price/${encodeURIComponent(selectedService.serviceType)}/${encodeURIComponent(selectedService.serviceTitle)}`,
+        { price },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
-      setServices(prev => [response.data, ...prev]);
-      setModalVisible(false);
-      setNewService({ name: '', description: '', rate: '', category: 'General' });
-      Alert.alert('Success', 'Service added successfully');
-    } catch (err: any) {
-      console.error('Error adding service:', err);
-      Alert.alert('Error', err.response?.data?.message || 'Failed to add service');
-    } finally {
-      setAddingService(false);
-    }
-  };
-
-  const toggleServiceStatus = async (serviceId: string, currentStatus: boolean) => {
-    try {
-      const token = await AsyncStorage.getItem('token');
-      await axios.put(
-        `${API_URL}/admin/services/${serviceId}`,
-        { isActive: !currentStatus },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      // Update local state
+      // Update the local state
       setServices(prev =>
         prev.map(service =>
-          service._id === serviceId
-            ? { ...service, isActive: !currentStatus }
+          service.serviceType === selectedService.serviceType &&
+          service.serviceTitle === selectedService.serviceTitle
+            ? { ...service, price: `₹${price}` }
             : service
         )
       );
-      Alert.alert('Success', 'Service status updated successfully');
+      
+      // Clear the service price cache so customers see updated prices
+      clearServicePriceCache();
+      
+      setEditModalVisible(false);
+      setSelectedService(null);
+      setEditPrice('');
+      Alert.alert(
+        'Success', 
+        'Service price updated successfully!\n\nNote: Customer app will show updated prices within 30 seconds or after refresh.',
+        [{ text: 'OK' }]
+      );
     } catch (err: any) {
       console.error('Error updating service:', err);
-      Alert.alert('Error', 'Failed to update service status');
+      Alert.alert('Error', err.response?.data?.message || 'Failed to update service price');
+    } finally {
+      setUpdating(false);
     }
   };
 
-  const renderService = ({ item }: { item: Service }) => (
+  const confirmDeleteService = async () => {
+    if (!selectedService) return;
+
+    try {
+      setUpdating(true);
+      
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.delete(
+        `${API_URL}/admin/services/${encodeURIComponent(selectedService.serviceType)}/${encodeURIComponent(selectedService.serviceTitle)}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      // Remove from local state
+      setServices(prev =>
+        prev.filter(service =>
+          !(service.serviceType === selectedService.serviceType &&
+            service.serviceTitle === selectedService.serviceTitle)
+        )
+      );
+      
+      setDeleteModalVisible(false);
+      setSelectedService(null);
+      Alert.alert('Success', 'Service deleted successfully');
+    } catch (err: any) {
+      console.error('Error deleting service:', err);
+      Alert.alert('Error', err.response?.data?.message || 'Failed to delete service');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const renderService = ({ item }: { item: ServiceItem }) => (
     <View style={styles.serviceCard}>
       <View style={styles.serviceInfo}>
-        <Text style={styles.serviceName}>{item.name}</Text>
-        <Text style={styles.serviceDescription}>{item.description}</Text>
+        <Text style={styles.serviceName}>{item.serviceName}</Text>
+        <Text style={styles.serviceTitle}>{item.serviceTitle}</Text>
         <View style={styles.serviceMeta}>
-          <Text style={styles.servicePrice}>₹{item.rate}</Text>
-          <Text style={styles.serviceCategory}>{item.category}</Text>
+          <Text style={styles.servicePrice}>{item.price}</Text>
+          <Text style={styles.serviceCategory}>{item.serviceType}</Text>
         </View>
       </View>
       <View style={styles.serviceActions}>
-        <TouchableOpacity
-          style={[
-            styles.statusButton,
-            { backgroundColor: item.isActive ? COLORS.success : COLORS.error }
-          ]}
-          onPress={() => toggleServiceStatus(item._id, item.isActive)}
-        >
-          <Text style={styles.statusButtonText}>
-            {item.isActive ? 'Active' : 'Inactive'}
-          </Text>
-        </TouchableOpacity>
+        {!item.isActive ? (
+          <View style={[styles.statusButton, { backgroundColor: COLORS.error }]}>
+            <Text style={styles.statusButtonText}>Coming Soon</Text>
+          </View>
+        ) : (
+          <>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.editButton]}
+              onPress={() => handleEditService(item)}
+            >
+              <Ionicons name="pencil" size={16} color={COLORS.white} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.deleteButton]}
+              onPress={() => handleDeleteService(item)}
+            >
+              <Ionicons name="trash" size={16} color={COLORS.white} />
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     </View>
   );
@@ -179,18 +359,13 @@ const ServicesScreen = () => {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Services Management</Text>
-        <TouchableOpacity 
-          style={styles.addButton}
-          onPress={() => setModalVisible(true)}
-        >
-          <Ionicons name="add" size={24} color={COLORS.white} />
-        </TouchableOpacity>
+        <Text style={styles.subtitle}>Manage service prices and availability</Text>
       </View>
       
       <FlatList
         data={services}
         renderItem={renderService}
-        keyExtractor={(item) => item._id}
+        keyExtractor={(item, index) => `${item.serviceType}-${item.serviceTitle}-${index}`}
         contentContainerStyle={styles.listContainer}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -202,12 +377,12 @@ const ServicesScreen = () => {
         }
       />
 
-      {/* Add Service Modal */}
+      {/* Edit Service Modal */}
       <Modal
         animationType="slide"
         transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
+        visible={editModalVisible}
+        onRequestClose={() => setEditModalVisible(false)}
       >
         <KeyboardAvoidingView 
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -215,82 +390,113 @@ const ServicesScreen = () => {
         >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add New Service</Text>
+              <Text style={styles.modalTitle}>Edit Service Price</Text>
               <TouchableOpacity 
-                onPress={() => setModalVisible(false)}
+                onPress={() => setEditModalVisible(false)}
                 style={styles.closeButton}
               >
                 <Ionicons name="close" size={24} color={COLORS.text} />
               </TouchableOpacity>
             </View>
             
-            <ScrollView style={styles.modalBody}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Service Name *</Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={newService.name}
-                  onChangeText={(text) => setNewService(prev => ({ ...prev, name: text }))}
-                  placeholder="Enter service name"
-                  maxLength={50}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Description</Text>
-                <TextInput
-                  style={[styles.textInput, styles.textArea]}
-                  value={newService.description}
-                  onChangeText={(text) => setNewService(prev => ({ ...prev, description: text }))}
-                  placeholder="Enter service description"
-                  multiline
-                  numberOfLines={3}
-                  maxLength={200}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Rate (₹) *</Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={newService.rate}
-                  onChangeText={(text) => setNewService(prev => ({ ...prev, rate: text }))}
-                  placeholder="Enter rate"
-                  keyboardType="numeric"
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Category</Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={newService.category}
-                  onChangeText={(text) => setNewService(prev => ({ ...prev, category: text }))}
-                  placeholder="Enter category"
-                  maxLength={30}
-                />
-              </View>
-            </ScrollView>
+            <View style={styles.modalBody}>
+              {selectedService && (
+                <>
+                  <View style={styles.editServiceInfo}>
+                    <Text style={styles.editServiceName}>{selectedService.serviceName}</Text>
+                    <Text style={styles.editServiceTitle}>{selectedService.serviceTitle}</Text>
+                  </View>
+                  
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Price (₹)</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={editPrice}
+                      onChangeText={setEditPrice}
+                      placeholder="Enter new price"
+                      keyboardType="numeric"
+                    />
+                  </View>
+                </>
+              )}
+            </View>
 
             <View style={styles.modalFooter}>
               <TouchableOpacity 
                 style={styles.cancelModalButton}
-                onPress={() => setModalVisible(false)}
+                onPress={() => setEditModalVisible(false)}
               >
                 <Text style={styles.cancelModalButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity 
-                style={[styles.addModalButton, addingService && styles.disabledButton]}
-                onPress={addNewService}
-                disabled={addingService}
+                style={[styles.updateModalButton, updating && styles.disabledButton]}
+                onPress={updateServicePrice}
+                disabled={updating}
               >
-                <Text style={styles.addModalButtonText}>
-                  {addingService ? 'Adding...' : 'Add Service'}
+                <Text style={styles.updateModalButtonText}>
+                  {updating ? 'Updating...' : 'Update Price'}
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Delete Service Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={deleteModalVisible}
+        onRequestClose={() => setDeleteModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Delete Service</Text>
+              <TouchableOpacity 
+                onPress={() => setDeleteModalVisible(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.modalBody}>
+              {selectedService && (
+                <>
+                  <Text style={styles.deleteWarning}>
+                    Are you sure you want to delete this service?
+                  </Text>
+                  <View style={styles.deleteServiceInfo}>
+                    <Text style={styles.deleteServiceName}>{selectedService.serviceName}</Text>
+                    <Text style={styles.deleteServiceTitle}>{selectedService.serviceTitle}</Text>
+                  </View>
+                  <Text style={styles.deleteNote}>
+                    This action cannot be undone.
+                  </Text>
+                </>
+              )}
+            </View>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity 
+                style={styles.cancelModalButton}
+                onPress={() => setDeleteModalVisible(false)}
+              >
+                <Text style={styles.cancelModalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.deleteModalButton, updating && styles.disabledButton]}
+                onPress={confirmDeleteService}
+                disabled={updating}
+              >
+                <Text style={styles.deleteModalButtonText}>
+                  {updating ? 'Deleting...' : 'Delete Service'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -302,9 +508,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     padding: 20,
     backgroundColor: COLORS.white,
     borderBottomWidth: 1,
@@ -315,13 +518,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: COLORS.text,
   },
-  addButton: {
-    backgroundColor: COLORS.primary,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+  subtitle: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    marginTop: 4,
   },
   listContainer: {
     padding: 16,
@@ -344,12 +544,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   serviceName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: COLORS.text,
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  serviceDescription: {
+  serviceTitle: {
     fontSize: 14,
     color: COLORS.textSecondary,
     marginBottom: 8,
@@ -373,7 +573,22 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   serviceActions: {
-    marginLeft: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  actionButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  editButton: {
+    backgroundColor: COLORS.primary,
+  },
+  deleteButton: {
+    backgroundColor: COLORS.error,
   },
   statusButton: {
     paddingHorizontal: 12,
@@ -458,6 +673,49 @@ const styles = StyleSheet.create({
   modalBody: {
     padding: 20,
   },
+  editServiceInfo: {
+    marginBottom: 20,
+    padding: 16,
+    backgroundColor: COLORS.background,
+    borderRadius: 8,
+  },
+  editServiceName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  editServiceTitle: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+  },
+  deleteServiceInfo: {
+    marginVertical: 16,
+    padding: 16,
+    backgroundColor: COLORS.background,
+    borderRadius: 8,
+  },
+  deleteServiceName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  deleteServiceTitle: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+  },
+  deleteWarning: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.error,
+    marginBottom: 16,
+  },
+  deleteNote: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    fontStyle: 'italic',
+  },
   inputGroup: {
     marginBottom: 16,
   },
@@ -474,10 +732,6 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
     backgroundColor: COLORS.white,
-  },
-  textArea: {
-    height: 80,
-    textAlignVertical: 'top',
   },
   modalFooter: {
     flexDirection: 'row',
@@ -499,7 +753,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontWeight: '600',
   },
-  addModalButton: {
+  updateModalButton: {
     flex: 1,
     padding: 12,
     borderRadius: 8,
@@ -507,7 +761,19 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     alignItems: 'center',
   },
-  addModalButtonText: {
+  updateModalButtonText: {
+    color: COLORS.white,
+    fontWeight: '600',
+  },
+  deleteModalButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: COLORS.error,
+    marginLeft: 8,
+    alignItems: 'center',
+  },
+  deleteModalButtonText: {
     color: COLORS.white,
     fontWeight: '600',
   },

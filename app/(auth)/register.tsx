@@ -97,17 +97,47 @@ const RegisterScreen = () => {
       });
 
       console.log('Registration response:', response.data);
-      const { token, user } = response.data;
       
-      await AsyncStorage.setItem('token', token);
-      await AsyncStorage.setItem('user', JSON.stringify(user));
+      // Check if email verification is required
+      if (response.data.requiresVerification) {
+        // Store user data temporarily for verification
+        await AsyncStorage.setItem('pendingVerification', JSON.stringify({
+          email: email.trim().toLowerCase(),
+          user: response.data.user
+        }));
+        
+        Alert.alert(
+          'Email Verification Required', 
+          'Please check your email for verification OTP and verify your account.',
+          [
+            {
+              text: 'Verify Email',
+              onPress: () => router.push('/email-verification' as any)
+            },
+            {
+              text: 'OK',
+              style: 'cancel'
+            }
+          ]
+        );
+      } else {
+        // Direct registration (fallback for non-verification flow)
+        const { token, user } = response.data;
+        
+        if (token) {
+          await AsyncStorage.setItem('token', token);
+          await AsyncStorage.setItem('user', JSON.stringify(user));
 
-      Alert.alert(t('success'), t('register_success'), [
-        {
-          text: 'OK',
-          onPress: () => router.push('/(tabs)' as any)
+          Alert.alert(t('success'), t('register_success'), [
+            {
+              text: 'OK',
+              onPress: () => router.push('/(tabs)' as any)
+            }
+          ]);
+        } else {
+          setError('Registration successful but no token received');
         }
-      ]);
+      }
     } catch (error: any) {
       console.error('Registration error details:', {
         message: error.message,

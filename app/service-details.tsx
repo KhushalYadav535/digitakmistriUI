@@ -10,11 +10,14 @@ import {
     View,
     Alert,
     Modal,
+    RefreshControl,
 } from 'react-native';
 import { COLORS, FONTS, SHADOWS, SIZES } from './constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_URL } from './constants/config';
+import { fetchServicePrices, getServicePrice, ServicePrice, clearServicePriceCache } from './utils/serviceUtils';
+import PriceUpdateNotification from './components/PriceUpdateNotification';
 
 const serviceMeta = {
     plumber: {
@@ -362,6 +365,9 @@ const ServiceDetailsScreen = () => {
     const service = serviceMeta[id as keyof typeof serviceMeta];
     const [bookedServices, setBookedServices] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [servicePrices, setServicePrices] = useState<ServicePrice[]>([]);
+    const [refreshing, setRefreshing] = useState(false);
+    const [showPriceNotification, setShowPriceNotification] = useState(false);
     const [selectedServices, setSelectedServices] = useState<Array<{
         title: string;
         price: string;
@@ -371,7 +377,36 @@ const ServiceDetailsScreen = () => {
 
     useEffect(() => {
         fetchBookedServices();
-    }, []);
+        fetchServicePrices().then(setServicePrices);
+        
+        // Set up periodic refresh every 30 seconds to check for price updates
+        const interval = setInterval(() => {
+            fetchServicePrices().then(newPrices => {
+                // Check if prices have changed
+                if (JSON.stringify(newPrices) !== JSON.stringify(servicePrices)) {
+                    setServicePrices(newPrices);
+                    setShowPriceNotification(true);
+                }
+            });
+        }, 30000); // 30 seconds
+        
+        return () => clearInterval(interval);
+    }, [servicePrices]);
+
+    const onRefresh = async () => {
+        setRefreshing(true);
+        try {
+            await fetchBookedServices();
+            const prices = await fetchServicePrices();
+            setServicePrices(prices);
+            // Show notification that prices have been refreshed
+            setShowPriceNotification(true);
+        } catch (error) {
+            console.error('Error refreshing:', error);
+        } finally {
+            setRefreshing(false);
+        }
+    };
 
     const fetchBookedServices = async () => {
         try {
@@ -420,6 +455,7 @@ const ServiceDetailsScreen = () => {
 
     const handleAddService = (serviceItem: any) => {
         const existingService = selectedServices.find(s => s.title === serviceItem.title);
+        const currentPrice = getCurrentPrice(serviceItem.title, serviceItem.price);
         
         if (existingService) {
             setSelectedServices(prev => 
@@ -432,7 +468,7 @@ const ServiceDetailsScreen = () => {
         } else {
             setSelectedServices(prev => [...prev, {
                 title: serviceItem.title,
-                price: serviceItem.price,
+                price: currentPrice,
                 quantity: 1
             }]);
         }
@@ -478,6 +514,15 @@ const ServiceDetailsScreen = () => {
         });
     };
 
+    const getCurrentPrice = (serviceTitle: string, defaultPrice: string): string => {
+        const dbPrice = getServicePrice(servicePrices, id as string, serviceTitle);
+        console.log(`Service: ${serviceTitle}, ServiceType: ${id}, DB Price: ${dbPrice}, Default: ${defaultPrice}`);
+        if (dbPrice !== null) {
+            return `₹${dbPrice}`;
+        }
+        return defaultPrice;
+    };
+
     const calculateTotalPrice = () => {
         return selectedServices.reduce((total, service) => {
             const price = parseInt(service.price.replace('₹', ''));
@@ -495,7 +540,17 @@ const ServiceDetailsScreen = () => {
 
     return (
         <View style={styles.container}>
-            <ScrollView style={styles.scrollView}>
+            <PriceUpdateNotification
+                visible={showPriceNotification}
+                onClose={() => setShowPriceNotification(false)}
+                message="Service prices have been refreshed!"
+            />
+            <ScrollView 
+                style={styles.scrollView}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                }
+            >
                 <View style={styles.header}>
                     <TouchableOpacity
                         style={styles.backButton}
@@ -504,7 +559,12 @@ const ServiceDetailsScreen = () => {
                         <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>service-details</Text>
-                    <View style={styles.backButton} />
+                    <TouchableOpacity
+                        style={styles.refreshButton}
+                        onPress={onRefresh}
+                    >
+                        <Ionicons name="refresh" size={24} color={COLORS.primary} />
+                    </TouchableOpacity>
                 </View>
 
                 <View style={[styles.serviceCard, { backgroundColor: service.color }]}> 
@@ -550,7 +610,9 @@ const ServiceDetailsScreen = () => {
                                         <View style={{ flex: 1 }}>
                                             <Text style={styles.subServiceTitle}>{item.title}</Text>
                                             <Text style={styles.subServiceSubtitle}>{item.subtitle}</Text>
-                                            <Text style={styles.subServicePrice}>{item.price}</Text>
+                                            <Text style={styles.subServicePrice}>
+                                                {servicePrices.length > 0 ? getCurrentPrice(item.title, item.price) : 'Loading...'}
+                                            </Text>
                                             {item.extra ? (
                                                 <Text style={styles.subServiceExtra}>{item.extra}</Text>
                                             ) : null}
@@ -664,6 +726,9 @@ const styles = StyleSheet.create({
         ...SHADOWS.small,
     },
     backButton: {
+        padding: SIZES.base,
+    },
+    refreshButton: {
         padding: SIZES.base,
     },
     headerTitle: {
