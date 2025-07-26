@@ -8,14 +8,20 @@ import { API_URL } from '../constants/config';
 export const getImageUrl = (imagePath: string): string => {
   if (!imagePath) return '';
   
-  // If it's already a Cloudinary URL, return as is
-  if (imagePath.startsWith('http')) {
+  // If it's already a complete URL, return as is
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
     return imagePath;
   }
   
-  // For local uploads, construct the full URL
+  // For local uploads, construct the full URL properly
   const baseUrl = API_URL.replace('/api', '');
-  return `${baseUrl}${imagePath}`;
+  const cleanBaseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
+  const cleanImagePath = imagePath.replace(/^\//, ''); // Remove leading slash
+  
+  const fullUrl = `${cleanBaseUrl}/${cleanImagePath}`;
+  console.log('🔗 getImageUrl constructed:', { original: imagePath, result: fullUrl });
+  
+  return fullUrl;
 };
 
 /**

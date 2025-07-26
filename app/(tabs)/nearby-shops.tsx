@@ -54,6 +54,7 @@ export default function NearbyShopsScreen() {
   const { highlightShopId } = useLocalSearchParams();
   const scrollViewRef = useRef<ScrollView>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     getLocation();
@@ -115,6 +116,16 @@ export default function NearbyShopsScreen() {
       });
       console.log('Shops loaded:', response.data);
       setShops(response.data);
+      
+      // Debug: Log image data for each shop
+      response.data.forEach((shop: Shop, index: number) => {
+        console.log(`🏪 Shop ${index + 1}:`, {
+          name: shop.name,
+          images: shop.images,
+          imageCount: shop.images ? shop.images.length : 0,
+          firstImage: shop.images && shop.images.length > 0 ? shop.images[0] : 'No image'
+        });
+      });
     } catch (error: any) {
       console.error('Error loading shops:', error);
       if (error.response) {
@@ -185,17 +196,40 @@ export default function NearbyShopsScreen() {
             <Text style={styles.emptyText}>No shops found nearby</Text>
           </View>
         ) : (
-          shops.map(shop => (
-            <View
-              key={shop._id}
-              style={[styles.shopCard, highlightedId === shop._id && styles.highlightedShopCard]}
-            >
-              {shop.images && shop.images.length > 0 && (
-                <Image
-                  source={{ uri: getImageUrl(shop.images[0]) }}
-                  style={styles.shopImage}
-                />
-              )}
+          shops.map((shop, index) => (
+            <View key={shop._id || index} style={styles.shopCard}>
+              <View style={styles.shopImageContainer}>
+                {shop.images && shop.images.length > 0 ? (
+                  <Image
+                    source={{ 
+                      uri: getImageUrl(shop.images[0]),
+                      headers: {
+                        'Accept': 'image/webp,image/png,image/jpeg,image/*,*/*;q=0.8'
+                      }
+                    }}
+                    style={styles.shopImage}
+                    onLoad={() => {
+                      console.log('✅ Image loaded successfully:', {
+                        shopName: shop.name,
+                        imageUrl: getImageUrl(shop.images[0]),
+                        isCloudinary: getImageUrl(shop.images[0]).includes('cloudinary.com')
+                      });
+                    }}
+                    onError={(error) => {
+                      console.log('❌ Image failed to load:', {
+                        shopName: shop.name,
+                        imageUrl: getImageUrl(shop.images[0]),
+                        error: error.nativeEvent?.error || 'Unknown error',
+                        isCloudinary: getImageUrl(shop.images[0]).includes('cloudinary.com')
+                      });
+                    }}
+                  />
+                ) : (
+                  <View style={[styles.shopImage, styles.placeholderImage]}>
+                    <Ionicons name="storefront-outline" size={40} color="#b2bec3" />
+                  </View>
+                )}
+              </View>
               <View style={styles.shopInfo}>
                 <Text style={styles.shopName}>{shop.name}</Text>
                 <Text style={styles.shopDescription}>{shop.description}</Text>
@@ -311,10 +345,19 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4
   },
-  shopImage: {
+  shopImageContainer: {
     width: '100%',
     height: 200,
+    overflow: 'hidden'
+  },
+  shopImage: {
+    width: '100%',
+    height: '100%',
     resizeMode: 'cover'
+  },
+  placeholderImage: {
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   shopInfo: {
     padding: SIZES.medium

@@ -38,6 +38,12 @@ const AdminProfileScreen = () => {
   const [password, setPassword] = useState('');
   const [success, setSuccess] = useState('');
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
   const { logout } = useAuth();
 
   useEffect(() => {
@@ -111,7 +117,7 @@ const AdminProfileScreen = () => {
       setSuccess('');
       const token = await AsyncStorage.getItem('token');
       const update: any = { name, email };
-      if (password) update.password = password;
+      // Password change is handled separately with OTP
       const res = await axios.put(`${API_URL}/admin/profile`, update, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -128,6 +134,67 @@ const AdminProfileScreen = () => {
 
   const handleSettingPress = (route: string) => {
     router.push(route as any);
+  };
+
+  const handleRequestOtp = async () => {
+    try {
+      setOtpLoading(true);
+      setError('');
+      const token = await AsyncStorage.getItem('token');
+      
+      await axios.post(`${API_URL}/admin/request-password-change`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      setOtpSent(true);
+      setSuccess('OTP sent to digitalmistri33@gmail.com');
+      Alert.alert('OTP Sent', 'Check your email for the OTP code.');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to send OTP');
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    try {
+      setError('');
+      setSuccess('');
+      
+      if (!otp || !newPassword || !confirmPassword) {
+        setError('All fields are required');
+        return;
+      }
+      
+      if (newPassword !== confirmPassword) {
+        setError('Passwords do not match');
+        return;
+      }
+      
+      if (newPassword.length < 6) {
+        setError('Password must be at least 6 characters long');
+        return;
+      }
+      
+      const token = await AsyncStorage.getItem('token');
+      
+      await axios.post(`${API_URL}/admin/change-password`, {
+        otp,
+        newPassword
+      }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      setSuccess('Password changed successfully');
+      setShowPasswordChange(false);
+      setOtp('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setOtpSent(false);
+      Alert.alert('Success', 'Password changed successfully');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to change password');
+    }
   };
 
   const handleLogout = async () => {
@@ -231,14 +298,6 @@ const AdminProfileScreen = () => {
                   placeholder="Email"
                   autoCapitalize="none"
                 />
-                <Text style={styles.label}>New Password (optional)</Text>
-                <TextInput
-                  style={styles.input}
-                  value={password}
-                  onChangeText={(text) => setPassword(text)}
-                  placeholder="New Password"
-                  secureTextEntry
-                />
                 <View style={{ flexDirection: 'row', marginTop: 8 }}>
                   <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
                     <Text style={styles.saveButtonText}>Save</Text>
@@ -289,6 +348,92 @@ const AdminProfileScreen = () => {
               />
             </TouchableOpacity>
           ))}
+          
+          {/* Password Change Section */}
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => setShowPasswordChange(!showPasswordChange)}
+          >
+            <View style={styles.settingLeft}>
+              <View style={styles.settingIconContainer}>
+                <Ionicons
+                  name="lock-closed"
+                  size={20}
+                  color={COLORS.primary}
+                />
+              </View>
+              <Text style={styles.settingTitle}>Change Password</Text>
+            </View>
+            <Ionicons
+              name={showPasswordChange ? "chevron-up" : "chevron-down"}
+              size={20}
+              color={COLORS.textSecondary}
+            />
+          </TouchableOpacity>
+          
+          {showPasswordChange && (
+            <View style={styles.passwordChangeContainer}>
+              {!otpSent ? (
+                <TouchableOpacity
+                  style={styles.otpButton}
+                  onPress={handleRequestOtp}
+                  disabled={otpLoading}
+                >
+                  <Text style={styles.otpButtonText}>
+                    {otpLoading ? 'Sending OTP...' : 'Send OTP to Email'}
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.otpForm}>
+                  <Text style={styles.otpLabel}>Enter OTP (sent to digitalmistri33@gmail.com)</Text>
+                  <TextInput
+                    style={styles.otpInput}
+                    value={otp}
+                    onChangeText={setOtp}
+                    placeholder="Enter 6-digit OTP"
+                    keyboardType="numeric"
+                    maxLength={6}
+                  />
+                  <Text style={styles.otpLabel}>New Password</Text>
+                  <TextInput
+                    style={styles.otpInput}
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                    placeholder="Enter new password"
+                    secureTextEntry
+                  />
+                  <Text style={styles.otpLabel}>Confirm Password</Text>
+                  <TextInput
+                    style={styles.otpInput}
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    placeholder="Confirm new password"
+                    secureTextEntry
+                  />
+                  <View style={styles.otpButtons}>
+                    <TouchableOpacity
+                      style={styles.changePasswordButton}
+                      onPress={handleChangePassword}
+                    >
+                      <Text style={styles.changePasswordButtonText}>Change Password</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.cancelOtpButton}
+                      onPress={() => {
+                        setShowPasswordChange(false);
+                        setOtpSent(false);
+                        setOtp('');
+                        setNewPassword('');
+                        setConfirmPassword('');
+                      }}
+                    >
+                      <Text style={styles.cancelOtpButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
         </Card>
       </View>
 
@@ -504,6 +649,77 @@ const styles = StyleSheet.create({
     color: COLORS.error,
     fontWeight: '600',
     marginLeft: SIZES.base,
+  },
+  // Password change styles
+  passwordChangeContainer: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: `${COLORS.primary}05`,
+    borderRadius: 8,
+  },
+  otpButton: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  otpButtonText: {
+    color: COLORS.white,
+    fontWeight: '600',
+    fontSize: FONTS.body3.fontSize,
+  },
+  otpForm: {
+    marginTop: 16,
+  },
+  otpLabel: {
+    fontSize: FONTS.body4.fontSize,
+    color: COLORS.textSecondary,
+    marginBottom: 4,
+    marginTop: 8,
+  },
+  otpInput: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: FONTS.body3.fontSize,
+    color: COLORS.textPrimary,
+    marginBottom: 8,
+    backgroundColor: COLORS.white,
+  },
+  otpButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+  },
+  changePasswordButton: {
+    backgroundColor: COLORS.success,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    flex: 1,
+    marginRight: 8,
+    alignItems: 'center',
+  },
+  changePasswordButtonText: {
+    color: COLORS.white,
+    fontWeight: '600',
+    fontSize: FONTS.body3.fontSize,
+  },
+  cancelOtpButton: {
+    backgroundColor: COLORS.border,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    flex: 1,
+    marginLeft: 8,
+    alignItems: 'center',
+  },
+  cancelOtpButtonText: {
+    color: COLORS.textPrimary,
+    fontWeight: '600',
+    fontSize: FONTS.body3.fontSize,
   },
 });
 

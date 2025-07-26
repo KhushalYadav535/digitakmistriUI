@@ -126,7 +126,7 @@ const ProfileScreen = () => {
   const getProfileImageUrl = (imgPath: string) => {
     if (!imgPath) return 'https://via.placeholder.com/100';
     if (imgPath.startsWith('http')) return imgPath;
-    return `http://192.168.1.4:5000${imgPath}`;
+    return `http://192.168.1.43:5000${imgPath}`;
   };
 
   if (loading) {
@@ -177,7 +177,6 @@ const ProfileScreen = () => {
           <Text style={styles.contactText}>digitalmistri33@gmail.com</Text>
         </View>
       </View>
-      
       <View style={styles.menuContainer}>
         <TouchableOpacity
           style={[styles.menuItem]}
@@ -212,6 +211,24 @@ const ProfileScreen = () => {
             <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
         ))}
+      </View>
+      {/* Policy Links Section */}
+      <View style={styles.policyLinksContainer}>
+        <TouchableOpacity style={styles.policyLink} onPress={() => router.push('/privacy-policy')}>
+          <Text style={styles.policyLinkText}>Privacy Policy</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.policyLink} onPress={() => router.push('/terms-and-conditions')}>
+          <Text style={styles.policyLinkText}>Terms and Conditions</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.policyLink} onPress={() => router.push('/cancellation-and-refund')}>
+          <Text style={styles.policyLinkText}>Cancellation and Refund</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.policyLink} onPress={() => router.push('/shipping-and-delivery')}>
+          <Text style={styles.policyLinkText}>Shipping and Delivery</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.policyLink} onPress={() => router.push('/contact-us')}>
+          <Text style={styles.policyLinkText}>Contact Us</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
@@ -386,6 +403,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.textPrimary,
     marginLeft: 12,
+    fontWeight: '500',
+  },
+  policyLinksContainer: {
+    marginHorizontal: 20,
+    marginBottom: 30,
+    marginTop: 0,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  policyLink: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F1F1',
+  },
+  policyLinkText: {
+    color: COLORS.primary,
+    fontSize: 16,
     fontWeight: '500',
   },
 });

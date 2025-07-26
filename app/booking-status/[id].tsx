@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, ScrollView, Modal, TextInput, Alert } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios, { AxiosError } from 'axios';
 import { API_URL } from '../constants/config';
 import { COLORS, FONTS, SIZES } from '../constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import Button from '../components/Button';
+import { SHADOWS } from '../constants/theme';
 
 interface Booking {
   _id: string;
@@ -19,12 +22,24 @@ interface Booking {
     pincode: string;
   };
   phone: string;
+  amount: number;
+  distance: number;
+  distanceCharge: number;
+  totalAmount: number;
+  customerCoordinates?: {
+    latitude: number;
+    longitude: number;
+    displayName?: string;
+    accuracy?: number;
+  };
   status: string;
   worker?: {
     name: string;
     phone: string;
   };
   createdAt: string;
+  rating?: number;
+  review?: string;
 }
 
 const statusColors: Record<string, string> = {
@@ -43,6 +58,11 @@ const BookingStatusScreen = () => {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewError, setReviewError] = useState('');
 
   const fetchBooking = async () => {
     if (!id) {
@@ -114,6 +134,34 @@ const BookingStatusScreen = () => {
     return `${address.street}, ${address.city}, ${address.state} - ${address.pincode}`;
   };
 
+  // Submit review to backend
+  const handleSubmitReview = async () => {
+    if (!reviewRating) {
+      setReviewError('Please select a rating');
+      return;
+    }
+    setSubmittingReview(true);
+    setReviewError('');
+    try {
+      const token = await AsyncStorage.getItem('token');
+      await axios.post(`${API_URL}/bookings/${booking?._id}/review`, {
+        rating: reviewRating,
+        review: reviewComment,
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setShowReviewModal(false);
+      setReviewRating(0);
+      setReviewComment('');
+      fetchBooking(); // Refresh booking to show review is done
+      Alert.alert('Thank you!', 'Your review has been submitted.');
+    } catch (err: any) {
+      setReviewError(err.response?.data?.message || 'Failed to submit review');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.content}>
@@ -128,11 +176,41 @@ const BookingStatusScreen = () => {
         <View style={styles.section}>
           <Text style={styles.label}>Address</Text>
           <Text style={styles.value}>{formatAddress(booking.address)}</Text>
+          {booking.customerCoordinates?.displayName && (
+            <Text style={styles.resolvedAddress}>
+              Resolved: {booking.customerCoordinates.displayName}
+            </Text>
+          )}
+          {booking.customerCoordinates?.accuracy && (
+            <Text style={styles.accuracyText}>
+              Location Accuracy: {Math.round(booking.customerCoordinates.accuracy * 100)}%
+            </Text>
+          )}
         </View>
 
         <View style={styles.section}>
           <Text style={styles.label}>Phone</Text>
           <Text style={styles.value}>{booking.phone}</Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.label}>Service Amount</Text>
+          <Text style={styles.value}>₹{booking.amount}</Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.label}>Distance</Text>
+          <Text style={styles.value}>{booking.distance} km from Janghai Bazar</Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.label}>Distance Charge</Text>
+          <Text style={styles.value}>₹{booking.distanceCharge}</Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.label}>Total Amount</Text>
+          <Text style={[styles.value, styles.totalAmount]}>₹{booking.totalAmount}</Text>
         </View>
 
         <View style={styles.section}>
@@ -165,7 +243,75 @@ const BookingStatusScreen = () => {
         <TouchableOpacity style={styles.refreshButton} onPress={fetchBooking}>
           <Text style={styles.refreshButtonText}>Refresh Status</Text>
         </TouchableOpacity>
+
+        {booking.worker && booking.status === 'Completed' && (
+          <View style={{ marginBottom: 24 }}>
+            {typeof (booking as any).rating === 'number' ? (
+              <View style={{ alignItems: 'center', marginVertical: 8 }}>
+                <Text style={{ color: COLORS.success, fontWeight: 'bold', fontSize: 16 }}>You rated this worker:</Text>
+                <View style={{ flexDirection: 'row', marginVertical: 6 }}>
+                  {[1,2,3,4,5].map(star => (
+                    <Ionicons
+                      key={star}
+                      name={star <= (booking as any).rating ? 'star' : 'star-outline'}
+                      size={28}
+                      color={COLORS.warning}
+                    />
+                  ))}
+                </View>
+                {Boolean((booking as any).review) && (
+                  <Text style={{ color: COLORS.textSecondary, fontStyle: 'italic' }}>
+                    "{(booking as any).review}"
+                  </Text>
+                )}
+              </View>
+            ) : (
+              <Button
+                title="Review Worker"
+                onPress={() => setShowReviewModal(true)}
+                variant="primary"
+                style={{ marginTop: 8 }}
+              />
+            )}
+          </View>
+        )}
       </View>
+      {/* Review Modal */}
+      <Modal visible={showReviewModal} animationType="slide" transparent>
+        <View style={modalStyles.overlay}>
+          <View style={modalStyles.modalContainer}>
+            <Text style={modalStyles.title}>Rate Your Worker</Text>
+            <View style={modalStyles.starsRow}>
+              {[1,2,3,4,5].map(star => (
+                <TouchableOpacity key={star} onPress={() => setReviewRating(star)}>
+                  <Ionicons
+                    name={star <= reviewRating ? 'star' : 'star-outline'}
+                    size={36}
+                    color={COLORS.warning}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput
+              placeholder="Write your review..."
+              value={reviewComment}
+              onChangeText={setReviewComment}
+              style={modalStyles.input}
+              multiline
+            />
+            {reviewError ? <Text style={modalStyles.errorText}>{reviewError}</Text> : null}
+            <Button
+              title={submittingReview ? 'Submitting...' : 'Submit Review'}
+              onPress={handleSubmitReview}
+              loading={submittingReview}
+              style={modalStyles.submitButton}
+            />
+            <TouchableOpacity onPress={() => setShowReviewModal(false)}>
+              <Text style={modalStyles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 };
@@ -249,6 +395,75 @@ const styles = StyleSheet.create({
     ...FONTS.body2,
     color: COLORS.text,
     fontWeight: '600',
+  },
+  totalAmount: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  resolvedAddress: {
+    ...FONTS.body4,
+    color: COLORS.textSecondary,
+    fontStyle: 'italic',
+    marginTop: 4,
+  },
+  accuracyText: {
+    ...FONTS.body4,
+    color: COLORS.primary,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+});
+
+const modalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: COLORS.overlay,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    backgroundColor: COLORS.white,
+    borderRadius: SIZES.radius * 2,
+    padding: SIZES.padding * 1.5,
+    width: '85%',
+    ...SHADOWS.medium,
+    alignItems: 'center',
+  },
+  title: {
+    ...FONTS.h3,
+    color: COLORS.textPrimary,
+    marginBottom: 16,
+  },
+  starsRow: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: SIZES.radius,
+    padding: 10,
+    minHeight: 60,
+    width: '100%',
+    marginBottom: 16,
+    color: COLORS.textPrimary,
+    backgroundColor: COLORS.input,
+  },
+  submitButton: {
+    width: '100%',
+    marginBottom: 8,
+  },
+  cancelText: {
+    color: COLORS.error,
+    textAlign: 'center',
+    fontSize: 15,
+    marginTop: 4,
+  },
+  errorText: {
+    color: COLORS.error,
+    marginBottom: 8,
+    textAlign: 'center',
   },
 });
 

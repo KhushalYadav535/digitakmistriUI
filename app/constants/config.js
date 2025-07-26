@@ -1,5 +1,6 @@
 // Use your computer's local IP for device testing on real devices
-const LOCAL_API = 'http://192.168.1.4:5000/api'; // Your computer's local IP
+// Update this to your actual local IP and port if needed
+const LOCAL_API = 'http://192.168.1.85:5000/api'; // <-- Change this to your backend IP:port/api
 const PROD_API = 'https://digital-mistri.onrender.com/api';
 
 // API Configuration
@@ -14,31 +15,7 @@ export const API_CONFIG = {
   }
 };
 
-// Function to determine which API URL to use
-const getApiUrl = async () => {
-  if (process.env.NODE_ENV === 'development') {
-    return LOCAL_API;
-  }
-
-  // Try to ping the production server
-  try {
-    const response = await fetch('https://digital-mistri.onrender.com/health');
-    if (response.ok) {
-      return PROD_API;
-    }
-  } catch (error) {
-    console.warn('Production server is down, falling back to local API');
-  }
-  
-  return LOCAL_API;
-};
-
-// Export a function to get the current API URL
-export const getCurrentApiUrl = async () => {
-  return await getApiUrl();
-};
-
-// For backward compatibility
+// Directly export API_URL for synchronous use in frontend
 export const API_URL = process.env.NODE_ENV === 'development' ? LOCAL_API : PROD_API;
 
 // Error Messages
@@ -52,16 +29,11 @@ export const API_ERRORS = {
 
 export const ENV = process.env.NODE_ENV || 'development';
 
-export const SOCKET_URL = process.env.NODE_ENV === 'development' ? 'http://192.168.1.3:5000' : 'https://digital-mistri.onrender.com';
+export const SOCKET_URL = process.env.NODE_ENV === 'development' ? 'http://192.168.1.43:5000' : 'https://digital-mistri.onrender.com';
 
-// Default export for Expo Router compatibility
-const config = {
-  API_CONFIG,
-  getCurrentApiUrl,
+
+
+// For backward compatibility
+export default {
   API_URL,
-  API_ERRORS,
-  ENV,
-  SOCKET_URL,
 };
-
-export default config;

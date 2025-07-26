@@ -20,6 +20,7 @@ import Card from '../../components/Card';
 import { COLORS, FONTS, SHADOWS, SIZES } from '../../constants/theme';
 import { apiClient } from '../utils/api';
 import { useApi } from '../hooks/useApi';
+import { API_URL } from '../constants/config';
 
 // Translations
 const translations = {
@@ -113,20 +114,51 @@ const WorkerDashboardScreen = () => {
   const t = translations[language];
 
   const { execute: fetchDashboard, loading, error } = useApi(async () => {
-    const token = await AsyncStorage.getItem('token');
-    const response = await apiClient.get<Worker>('/worker/dashboard', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    
-    console.log('Dashboard response:', JSON.stringify(response, null, 2));
-    console.log('Completed bookings:', response.completedBookings);
-    console.log('Response keys:', Object.keys(response));
-    
-    setWorker(response);
-    setAvailable(response.isAvailable || false);
-    setAssignedBookings(response.assignedBookings || []);
-    setCompletedBookings(response.completedBookings || []);
-    return response;
+    try {
+      console.log('=== WORKER DASHBOARD API CALL ===');
+      const token = await AsyncStorage.getItem('token');
+      console.log('Token exists:', !!token);
+      console.log('Token length:', token?.length);
+      
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+      
+      // Test direct API call without useApi hook
+      console.log('Making direct API call to /worker/dashboard');
+      const response = await fetch(`${API_URL}/worker/dashboard`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+      
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('API Error Response:', errorData);
+        throw new Error(`API Error: ${response.status} - ${errorData}`);
+      }
+      
+      const data = await response.json();
+      console.log('Dashboard response received');
+      console.log('Response data:', data);
+      
+      setWorker(data);
+      setAvailable(data.isAvailable || false);
+      setAssignedBookings(data.assignedBookings || []);
+      setCompletedBookings(data.completedBookings || []);
+      return data;
+    } catch (err: any) {
+      console.error('=== WORKER DASHBOARD ERROR ===');
+      console.error('Error type:', typeof err);
+      console.error('Error message:', err.message);
+      console.error('Error stack:', err.stack);
+      throw err;
+    }
   });
 
   const onRefresh = React.useCallback(async () => {
@@ -431,28 +463,8 @@ const WorkerDashboardScreen = () => {
                   colors={[COLORS.primary + '10', COLORS.primary + '20']}
                   style={styles.statCardGradient}
                 >
-                  <Text style={styles.statValue}>{getEarningsAmount()}</Text>
-                  <Text style={styles.statLabel}>{t.earnings[earningsPeriod]}</Text>
-                  <View style={styles.earningsPeriodSelector}>
-                    <TouchableOpacity
-                      style={[styles.periodButton, earningsPeriod === 'daily' && styles.activePeriod]}
-                      onPress={() => setEarningsPeriod('daily')}
-                    >
-                      <Text style={[styles.periodText, earningsPeriod === 'daily' && styles.activePeriodText]}>D</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.periodButton, earningsPeriod === 'weekly' && styles.activePeriod]}
-                      onPress={() => setEarningsPeriod('weekly')}
-                    >
-                      <Text style={[styles.periodText, earningsPeriod === 'weekly' && styles.activePeriodText]}>W</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.periodButton, earningsPeriod === 'monthly' && styles.activePeriod]}
-                      onPress={() => setEarningsPeriod('monthly')}
-                    >
-                      <Text style={[styles.periodText, earningsPeriod === 'monthly' && styles.activePeriodText]}>M</Text>
-                    </TouchableOpacity>
-                  </View>
+                  <Text style={styles.statValue}>{`₹${worker?.stats?.totalEarnings || 0}`}</Text>
+                  <Text style={styles.statLabel}>{language === 'en' ? 'Total Earnings' : 'कुल कमाई'}</Text>
                 </LinearGradient>
               </Card>
             </TouchableOpacity>
@@ -527,9 +539,6 @@ const WorkerDashboardScreen = () => {
         <View style={styles.jobRequestsSection}>
           <Text style={styles.sectionTitle}>
             {language === 'en' ? 'Completed Jobs' : 'पूरे किए गए काम'} ({completedBookings?.length || 0})
-          </Text>
-          <Text style={{ color: 'red', fontSize: 12, marginBottom: 10 }}>
-            Debug: Worker stats show {worker?.stats?.completedBookings || 0} completed
           </Text>
           {completedBookings && completedBookings.length > 0 ? (
             completedBookings.map(job => renderJobCard(job))

@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_URL } from '../constants/config';
 
+
 export default function TabLayout() {
   const [notificationCount, setNotificationCount] = useState(0);
 
@@ -15,29 +16,70 @@ export default function TabLayout() {
         const token = await AsyncStorage.getItem('token');
         const userStr = await AsyncStorage.getItem('user');
         
-        if (!token || !userStr) return;
+        if (!token || !userStr) {
+          console.log('No token or user data found, skipping notification count fetch');
+          return;
+        }
         
         const user = JSON.parse(userStr);
         const userModel = user.role === 'admin' ? 'Admin' : user.role === 'worker' ? 'Worker' : 'Customer';
         
-        const response = await axios.get(`${API_URL}/notifications/unread-count?userModel=${userModel}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        console.log('Fetching notification count for:', userModel);
         
-        setNotificationCount(response.data.unreadCount || 0);
-      } catch (error) {
-        console.error('Error fetching notification count:', error);
+                // Add timeout to prevent hanging requests
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        
+        try {
+          const response = await axios.get(`${API_URL}/notifications/unread-count?userModel=${userModel}`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            signal: controller.signal,
+            timeout: 10000, // 10 second timeout
+          });
+          
+          clearTimeout(timeoutId);
+          setNotificationCount(response.data.unreadCount || 0);
+          console.log('Notification count updated:', response.data.unreadCount || 0);
+          
+        } catch (error: any) {
+          // Clear timeout if it was set
+          clearTimeout(timeoutId);
+          
+          // Handle different types of errors
+          if (error.name === 'AbortError' || error.code === 'ECONNABORTED') {
+            console.log('Notification count request timed out');
+          } else if (error.response) {
+            // Server responded with error status
+            console.log('Notification count server error:', error.response.status, error.response.data);
+          } else if (error.request) {
+            // Network error - no response received
+            console.log('Notification count network error - no response received');
+          } else {
+            // Other errors
+            console.log('Notification count error:', error.message);
+          }
+          
+          // Don't show error to user for notification count, just log it
+          // This prevents the app from being unusable due to notification count issues
+        }
+      } catch (error: any) {
+        console.log('Error in notification count fetch:', error.message);
       }
     };
 
+    // Initial fetch
     fetchNotificationCount();
     
     // Refresh count every 30 seconds
-    const interval = setInterval(fetchNotificationCount, 30000);
+    const interval = setInterval(() => {
+      fetchNotificationCount();
+    }, 30000);
     
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+    };
   }, []);
 
   return (
@@ -129,6 +171,7 @@ export default function TabLayout() {
       />
       {/* Hide dynamic routes from tab bar */}
       <Tabs.Screen name="payment" options={{ href: null }} />
+      <Tabs.Screen name="payment-success" options={{ href: null }} />
       <Tabs.Screen name="service-details" options={{ href: null }} />
       <Tabs.Screen name="booking" options={{ href: null }} />
       <Tabs.Screen name="shop" options={{ href: null }} />

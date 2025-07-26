@@ -23,6 +23,21 @@ const BookingScreen = () => {
     };
     phone: string;
     amount: number;
+    totalAmount: number;
+    distance: number;
+    distanceCharge: number;
+    gpsCoordinates?: {
+      latitude: number;
+      longitude: number;
+      accuracy: number;
+      address?: string;
+    } | null;
+    services?: {
+      serviceType: string;
+      serviceTitle: string;
+      amount: number;
+      quantity: number;
+    }[];
   }) => {
     setIsLoading(true);
     let alertShown = false;
@@ -36,45 +51,35 @@ const BookingScreen = () => {
         return;
       }
 
-      const res = await axios.post(
-        `${API_URL}/bookings`,
-        {
-          serviceType: bookingData.serviceId,
+      // Navigate to payment screen with total amount
+      const bookingDataForPayment = {
+        serviceId: bookingData.serviceId,
+        serviceTitle: bookingData.serviceTitle,
+        servicePrice: bookingData.amount.toString(), // Service amount
+        totalAmount: bookingData.totalAmount.toString(), // Total amount including distance
+        bookingData: JSON.stringify({
+          serviceId: bookingData.serviceId,
           serviceTitle: bookingData.serviceTitle,
-          bookingDate: bookingData.date,
-          bookingTime: bookingData.time,
+          date: bookingData.date,
+          time: bookingData.time,
           address: bookingData.address,
           phone: bookingData.phone,
           amount: bookingData.amount,
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      console.log('Booking API response:', res.status, res.data);
-      if (res.status === 201 || res.status === 200) {
-        alertShown = true;
-        Alert.alert(
-          'Booking Successful',
-          'Your booking has been created successfully.',
-          [
-            {
-              text: 'View Booking Status',
-              onPress: () => {
-                if (res.data._id) {
-                  router.push(`/booking-status/${res.data._id}` as any);
-                } else if (res.data.success) {
-                  Alert.alert('Notice', 'Booking created, but no ID returned. Please check your bookings list.');
-                } else {
-                  Alert.alert('Error', 'Failed to get booking ID');
-                }
-              }
-            },
-            {
-              text: 'Go Back',
-              style: 'cancel'
-            }
-          ]
-        );
-      }
+          totalAmount: bookingData.totalAmount,
+          distance: bookingData.distance,
+          distanceCharge: bookingData.distanceCharge,
+          gpsCoordinates: bookingData.gpsCoordinates,
+          services: bookingData.services // Include services for multiple service bookings
+        })
+      };
+
+      console.log('💰 Navigating to payment with total amount:', bookingDataForPayment);
+      
+      // Navigate to payment screen
+      router.push({
+        pathname: '/(tabs)/payment' as any,
+        params: bookingDataForPayment
+      });
     } catch (error) {
       console.error('Booking error:', error);
       const axiosError = error as AxiosError<{ message: string }>;

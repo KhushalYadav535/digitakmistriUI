@@ -218,7 +218,10 @@ const AdminWorkersScreen = () => {
       return;
     }
     
-    router.push(`/(admin)/worker-detail/${workerId}` as any);
+    router.push({
+      pathname: '/(admin)/worker-detail' as any,
+      params: { id: workerId }
+    });
   };
 
   // Show all workers, only filter by search query (not by status)

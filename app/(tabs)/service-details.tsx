@@ -34,7 +34,7 @@ const serviceDetails = {
       {
         title: 'Toti Installation',
         subtitle: 'Install toti',
-        price: '₹50',
+               price: '₹8',
         charges: 'Per piece + ₹10/km',
       },
     ],
@@ -292,7 +292,7 @@ const serviceDetails = {
     ],
   },
   mechanic: {
-    name: 'Mechanic',
+    name: 'Auto Part Mechanic',
     description: 'Professional automotive repair and maintenance',
     image: require('../../assets/images/mechanic.jpeg'),
     icon: 'construct-outline' as const,
@@ -322,7 +322,7 @@ const serviceDetails = {
     ],
   },
   tailor: {
-    name: 'Tailor',
+    name: 'Tailor Technician',
     description: 'Professional tailoring and garment services',
     image: require('../../assets/images/tailor.jpeg'),
     icon: 'cut-outline' as const,
@@ -452,6 +452,14 @@ const ServiceDetailScreen = () => {
   }
   // Show booking form for cart
   if (showBookingFormForCart && selectedServicesForCart.length > 0) {
+    // Convert selected services to the format expected by the API
+    const servicesForAPI = selectedServicesForCart.map(service => ({
+      serviceType: service.subtitle,
+      serviceTitle: service.title,
+      amount: parseInt(service.price.replace('₹', '')),
+      quantity: service.quantity || 1
+    }));
+
     return (
       <BookingForm
         initialService={{
@@ -460,6 +468,7 @@ const ServiceDetailScreen = () => {
           type: 'Multiple',
           price: `₹${calculateTotalPrice()}` // Pass the calculated total price
         }}
+        selectedServices={servicesForAPI}
         onSubmit={(bookingData: any) => {
           // Navigate to payment with all selected services and booking details
           router.push({

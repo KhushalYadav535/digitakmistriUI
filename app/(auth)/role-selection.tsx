@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
     paddingBottom: SIZES.medium,
   },
   button: {
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.primary, // Changed from COLORS.white to COLORS.primary (blue)
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   buttonText: {
-    color: COLORS.textPrimary,
+    color: COLORS.white, // Changed from COLORS.textPrimary to COLORS.white for contrast
     fontSize: FONTS.h3.fontSize,
     fontWeight: '600',
     marginLeft: SIZES.base,

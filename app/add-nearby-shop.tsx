@@ -97,7 +97,8 @@ const AddNearbyShopScreen = () => {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
-        quality: 1,
+        quality: 0.5, // Reduce quality to keep base64 size manageable (max 50MB)
+        base64: true, // Enable base64 encoding
       });
       if (!result.canceled) {
         const img = result.assets[0];
@@ -111,7 +112,28 @@ const AddNearbyShopScreen = () => {
               return;
             }
           }
-          setImage(img.uri);
+          
+          // Convert to base64 for Cloudinary upload
+          if (img.base64) {
+            const base64Image = `data:image/jpeg;base64,${img.base64}`;
+            
+            // Check base64 size (roughly 1.33x the base64 string length)
+            const estimatedSizeMB = (img.base64.length * 1.33) / (1024 * 1024);
+            console.log('📏 Estimated image size:', estimatedSizeMB.toFixed(2), 'MB');
+            
+            if (estimatedSizeMB > 10) {
+              Alert.alert('Image too large', 'Please select a smaller image (under 10MB).');
+              return;
+            }
+            
+            setImage(base64Image);
+            console.log('📤 Image converted to base64 for Cloudinary upload');
+          } else {
+            // Fallback to URI if base64 not available
+            setImage(img.uri);
+            console.log('⚠️ Base64 not available, using URI:', img.uri);
+          }
+          
           setErrors((e: any) => ({ ...e, image: undefined }));
         }
       }
@@ -124,18 +146,40 @@ const AddNearbyShopScreen = () => {
     if (!validate()) return;
     setSubmitting(true);
     setPaymentType(type);
+    
+    // Format the shop data properly
+    const formattedShopData = {
+      ...formData,
+      image,
+      location: location ? {
+        coordinates: [location.coords.longitude, location.coords.latitude]
+      } : null,
+      services: formData.services || [],
+      workingHours: formData.workingHours || {
+        monday: { open: '09:00', close: '18:00' },
+        tuesday: { open: '09:00', close: '18:00' },
+        wednesday: { open: '09:00', close: '18:00' },
+        thursday: { open: '09:00', close: '18:00' },
+        friday: { open: '09:00', close: '18:00' },
+        saturday: { open: '09:00', close: '18:00' },
+        sunday: { open: '09:00', close: '18:00' }
+      }
+    };
+    
     // Pass form data and payment info to payment screen
     router.push({
       pathname: '/(tabs)/payment',
       params: {
         serviceTitle: 'Nearby Shop Listing',
-        servicePrice: type === 'monthly' ? '1000' : '8000',
+        servicePrice: type === 'monthly' ? '200' : '1000',
         customFlow: 'addNearbyShop',
-        shopData: JSON.stringify({ ...formData, image, location }),
+        shopData: JSON.stringify(formattedShopData),
       },
     });
     setTimeout(() => setSubmitting(false), 2000); // re-enable after navigation
   };
+
+
 
   return (
     <ScrollView style={styles.bg} contentContainerStyle={{ padding: 0 }}>
@@ -267,7 +311,7 @@ const AddNearbyShopScreen = () => {
               disabled={submitting}
             >
               <Ionicons name="calendar-outline" size={20} color={COLORS.primary} style={{ marginRight: 8 }} />
-              <Text style={[styles.paymentButtonText, { color: COLORS.primary }]}>Pay ₹1000 / Month</Text>
+              <Text style={[styles.paymentButtonText, { color: COLORS.primary }]}>Pay ₹200 / Month</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.paymentButton, submitting && { opacity: 0.5 }]}
@@ -276,8 +320,9 @@ const AddNearbyShopScreen = () => {
               disabled={submitting}
             >
               <Ionicons name="calendar" size={20} color={COLORS.primary} style={{ marginRight: 8 }} />
-              <Text style={[styles.paymentButtonText, { color: COLORS.primary }]}>Pay ₹8000 / Year</Text>
+              <Text style={[styles.paymentButtonText, { color: COLORS.primary }]}>Pay ₹1000 / Year</Text>
             </TouchableOpacity>
+
           </View>
           {errors.location && <Text style={styles.errorText}>{errors.location}</Text>}
         </View>

@@ -66,10 +66,10 @@ const services = [
     image: require('../../assets/images/cleaner.jpeg'),
     comingSoon: true,
   },
-  {
-    id: 'mechanic',
-    name: 'Mechanic',
-    image: require('../../assets/images/mechanic.jpeg'),
+      {
+      id: 'mechanic',
+      name: 'Auto Part Mechanic',
+      image: require('../../assets/images/mechanic.jpeg'),
     comingSoon: true,
   },
   {
@@ -78,10 +78,10 @@ const services = [
     image: require('../../assets/images/welder.jpeg'),
     comingSoon: true,
   },
-  {
-    id: 'tailor',
-    name: 'Tailor',
-    image: require('../../assets/images/tailor.jpeg'),
+      {
+      id: 'tailor',
+      name: 'Tailor Technician',
+      image: require('../../assets/images/tailor.jpeg'),
     comingSoon: true,
   },
 ];
@@ -102,6 +102,7 @@ const TabLayout = () => {
     latitude: number;
     longitude: number;
   } | null>(null);
+  const [userAddress, setUserAddress] = useState<string>('');
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   // Animation for fade-in
@@ -146,6 +147,23 @@ const TabLayout = () => {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude
       });
+      // Reverse geocode to get address
+      try {
+        const addressArr = await Location.reverseGeocodeAsync({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude
+        });
+        if (addressArr && addressArr.length > 0) {
+          const addr = addressArr[0];
+          const addressStr = [addr.name, addr.street, addr.city, addr.region, addr.postalCode, addr.country]
+            .filter(Boolean).join(', ');
+          setUserAddress(addressStr);
+        } else {
+          setUserAddress('');
+        }
+      } catch (err) {
+        setUserAddress('');
+      }
     } catch (error) {
       console.error('Error getting location:', error);
     }
@@ -193,6 +211,16 @@ const TabLayout = () => {
           <View style={styles.greetingContainer}>
             <Text style={styles.greeting}>{getGreeting()}</Text>
             <Text style={styles.userName}>{user?.name || 'Guest'}</Text>
+            <View style={{ marginTop: 6, flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="location" size={18} color={COLORS.primary} style={{ marginRight: 4 }} />
+              <Text style={{ color: COLORS.textSecondary, fontSize: 14 }}>
+                {userAddress
+                  ? userAddress
+                  : userLocation
+                    ? `${userLocation.latitude.toFixed(5)}, ${userLocation.longitude.toFixed(5)}`
+                    : 'Fetching location...'}
+              </Text>
+            </View>
           </View>
           <View style={styles.searchContainer}>
             <TextInput

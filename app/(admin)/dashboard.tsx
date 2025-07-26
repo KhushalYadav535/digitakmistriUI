@@ -32,6 +32,28 @@ const AdminDashboardScreen = () => {
         setLoading(true);
         setError('');
         const overviewData = await fetchDashboardOverview();
+        console.log('=== DASHBOARD OVERVIEW DEBUG ===');
+        console.log('Overview data:', overviewData);
+        console.log('Top workers:', overviewData?.topWorkers);
+        console.log('New workers:', overviewData?.newWorkers);
+        if (overviewData?.topWorkers) {
+          overviewData.topWorkers.forEach((worker: any, index: number) => {
+            console.log(`Top worker ${index}:`, {
+              _id: worker._id,
+              name: worker.name,
+              hasId: !!worker._id
+            });
+          });
+        }
+        if (overviewData?.newWorkers) {
+          overviewData.newWorkers.forEach((worker: any, index: number) => {
+            console.log(`New worker ${index}:`, {
+              _id: worker._id,
+              name: worker.name,
+              hasId: !!worker._id
+            });
+          });
+        }
         setOverview(overviewData);
         const workersData = await fetchWorkers();
         setWorkers(workersData);
@@ -159,7 +181,21 @@ const AdminDashboardScreen = () => {
           overview.topWorkers.map((worker: Worker) => (
             <TouchableOpacity
               key={worker._id || worker.email || worker.name}
-              onPress={() => router.push({ pathname: '/(admin)/worker-detail', params: { id: worker._id } }) as any}
+              onPress={() => {
+                console.log('=== TOP WORKER CLICK DEBUG ===');
+                console.log('Worker object:', worker);
+                console.log('Worker _id:', worker._id);
+                console.log('Worker _id type:', typeof worker._id);
+                console.log('Worker _id length:', worker._id?.length);
+                
+                if (!worker._id) {
+                  console.error('Top Worker ID is missing!');
+                  Alert.alert('Error', 'Worker ID is missing. Cannot open details.');
+                  return;
+                }
+                console.log('Navigating to worker detail with ID:', worker._id);
+                router.push({ pathname: '/(admin)/worker-detail', params: { id: worker._id } }) as any;
+              }}
               activeOpacity={0.85}
             >
               <Card variant="elevated" style={styles.activityCard}>
@@ -190,7 +226,21 @@ const AdminDashboardScreen = () => {
           overview.newWorkers.map((worker: Worker) => (
             <TouchableOpacity
               key={worker._id || worker.email || worker.name}
-              onPress={() => router.push({ pathname: '/(admin)/worker-detail', params: { id: worker._id } }) as any}
+              onPress={() => {
+                console.log('=== NEW WORKER CLICK DEBUG ===');
+                console.log('Worker object:', worker);
+                console.log('Worker _id:', worker._id);
+                console.log('Worker _id type:', typeof worker._id);
+                console.log('Worker _id length:', worker._id?.length);
+                
+                if (!worker._id) {
+                  console.error('New Worker ID is missing!');
+                  Alert.alert('Error', 'Worker ID is missing. Cannot open details.');
+                  return;
+                }
+                console.log('Navigating to worker detail with ID:', worker._id);
+                router.push({ pathname: '/(admin)/worker-detail', params: { id: worker._id } }) as any;
+              }}
               activeOpacity={0.85}
             >
               <Card variant="elevated" style={styles.activityCard}>

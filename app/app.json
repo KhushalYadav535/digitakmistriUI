@@ -2,7 +2,7 @@
   "expo": {
     "name": "Digital Mistri",
     "slug": "digital-mistri",
-    "version": "1.0.7",
+    "version": "1.0.8",
     "orientation": "portrait",
     "icon": "./assets/applogo.png",
     "userInterfaceStyle": "light",
@@ -23,7 +23,7 @@
         "foregroundImage": "./assets/applogo.png",
         "backgroundColor": "#ffffff"
       },
-      "versionCode": 15
+      "versionCode": 16
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -31,6 +31,7 @@
     "plugins": [
       "expo-router"
     ],
+    "scheme": "digitalmistri",
     "extra": {
       "eas": {
         "projectId": "your-project-id-here"

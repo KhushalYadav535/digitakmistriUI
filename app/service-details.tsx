@@ -47,7 +47,7 @@ const serviceMeta = {
             {
                 title: 'Toti Installation',
                 subtitle: 'Install toti',
-                price: '₹50',
+                price: '₹8',
                 extra: 'Per piece + ₹10/km',
             },
         ],
@@ -305,7 +305,7 @@ const serviceMeta = {
         ],
     },
     mechanic: {
-        name: 'Mechanic',
+        name: 'Auto Part Mechanic',
         description: 'Professional automotive repair and maintenance',
         icon: <MaterialCommunityIcons name="wrench" size={36} color="#FF4500" />,
         color: '#FFE4E1',
@@ -335,7 +335,7 @@ const serviceMeta = {
         ],
     },
     tailor: {
-        name: 'Tailor',
+        name: 'Tailor Technician',
         description: 'Professional tailoring and garment services',
         icon: <MaterialCommunityIcons name="scissors-cutting" size={36} color="#32CD32" />,
         color: '#F0FFF0',

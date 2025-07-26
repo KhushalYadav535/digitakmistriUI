@@ -23,6 +23,10 @@ interface Booking {
     state: string;
     pincode: string;
   };
+  amount: number;
+  distance: number;
+  distanceCharge: number;
+  totalAmount: number;
   status: BookingStatus;
   worker?: {
     name: string;
@@ -202,6 +206,14 @@ const BookingsScreen = () => {
             {getStatusText(item.status)}
           </Text>
           <Text style={styles.bookingAddress}>{formatAddress(item.address)}</Text>
+          
+          <View style={styles.amountInfo}>
+            <Text style={styles.amountLabel}>Service: ₹{item.amount}</Text>
+            <Text style={styles.amountLabel}>Distance: {item.distance} km</Text>
+            <Text style={styles.amountLabel}>Distance Charge: ₹{item.distanceCharge}</Text>
+            <Text style={styles.totalAmount}>Total: ₹{item.totalAmount}</Text>
+          </View>
+          
           {item.worker && (
             <View style={styles.workerInfo}>
               <Text style={styles.workerLabel}>Assigned Worker:</Text>
@@ -416,6 +428,23 @@ const styles = StyleSheet.create({
   viewDetailsButtonText: {
     color: '#fff',
     fontWeight: 'bold',
+  },
+  amountInfo: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  amountLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 2,
+  },
+  totalAmount: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+    marginTop: 4,
   },
 });
 

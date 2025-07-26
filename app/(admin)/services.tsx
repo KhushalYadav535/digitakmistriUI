@@ -36,7 +36,7 @@ const serviceMeta: Record<string, ServiceMetaItem> = {
       { title: 'Basin Set Fitting/Repair', price: '₹200' },
       { title: 'Flush Tank Service', price: '₹300' },
       { title: 'Wiring Related Repair', price: '₹250' },
-      { title: 'Toti Installation', price: '₹50' },
+      { title: 'Toti Installation', price: '₹8' },
     ],
   },
   electrician: {
@@ -107,7 +107,7 @@ const serviceMeta: Record<string, ServiceMetaItem> = {
     ],
   },
   mechanic: {
-    name: 'Mechanic',
+    name: 'Auto Part Mechanic',
     description: 'Professional automotive repair and maintenance',
     comingSoon: true,
     services: [
@@ -123,7 +123,7 @@ const serviceMeta: Record<string, ServiceMetaItem> = {
     ],
   },
   tailor: {
-    name: 'Tailor',
+    name: 'Tailor Technician',
     description: 'Professional tailoring and garment services',
     comingSoon: true,
     services: [

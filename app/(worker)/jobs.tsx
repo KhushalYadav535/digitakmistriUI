@@ -19,6 +19,7 @@ import { API_URL } from '../constants/config';
 import axios from 'axios';
 
 interface Job {
+  _id: string; // Add this line to fix the type error
   id: string;
   customer: {
     name: string;
@@ -33,7 +34,7 @@ interface Job {
   };
   date: string;
   time: string;
-  status: 'pending' | 'accepted' | 'in_progress' | 'completed' | 'cancelled' | 'Unknown';
+  status: 'pending' | 'accepted' | 'in_progress' | 'completed' | 'cancelled' | 'Unknown' | 'Pending' | 'Accepted' | 'In Progress' | 'Completed' | 'Cancelled' | 'Worker Assigned';
   amount: number;
   phone: string;
 }
@@ -44,7 +45,7 @@ const WorkerJobsScreen = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
   const [selectedStatus, setSelectedStatus] = useState<Job['status'] | 'all'>('all');
-  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [assignedBookings, setAssignedBookings] = useState<Job[]>([]);
   const [unassignedBookings, setUnassignedBookings] = useState<Job[]>([]);
   const [completedBookings, setCompletedBookings] = useState<Job[]>([]);
@@ -94,11 +95,29 @@ const WorkerJobsScreen = () => {
     fetchJobs();
   }, []);
 
+  // Statuses as per backend
+  const STATUS_OPTIONS = [
+    { key: 'all', label: 'All' },
+    { key: 'Pending', label: 'Pending' },
+    { key: 'Worker Assigned', label: 'Assigned' },
+    { key: 'Accepted', label: 'Accepted' },
+    { key: 'In Progress', label: 'In Progress' },
+    { key: 'Completed', label: 'Completed' },
+    { key: 'Cancelled', label: 'Cancelled' },
+  ];
+
+  // Update filter logic to match backend status
   useEffect(() => {
+    console.log('All jobs:', jobs.map(j => j.status));
     if (selectedStatus === 'all') {
       setFilteredJobs(jobs);
     } else {
-      setFilteredJobs(jobs.filter(job => job.status === selectedStatus));
+      setFilteredJobs(jobs.filter(job => {
+        // Normalize both status and selectedStatus for robust matching
+        const jobStatus = (job.status || '').toLowerCase().replace(/\s+/g, ' ').trim();
+        const selected = (selectedStatus || '').toLowerCase().replace(/\s+/g, ' ').trim();
+        return jobStatus === selected;
+      }));
     }
   }, [selectedStatus, jobs]);
 
@@ -208,74 +227,31 @@ const WorkerJobsScreen = () => {
     }
   };
 
-  const renderFilterModal = () => {
-    if (!showFilterModal) return null;
-
+  const renderFilterDropdown = () => {
+    if (!showFilterDropdown) return null;
     return (
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Filter Jobs</Text>
-            <TouchableOpacity 
-              style={styles.closeButton}
-              onPress={() => setShowFilterModal(false)}
-            >
-              <Ionicons name="close" size={24} color={COLORS.textPrimary} />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.filterOptions}>
+      <View style={styles.dropdownOverlay}>
+        <View style={styles.dropdownMenu}>
+          {STATUS_OPTIONS.map(option => (
             <TouchableOpacity
+              key={option.key}
               style={[
-                styles.filterOption,
-                selectedStatus === 'all' && styles.selectedFilter
+                styles.dropdownItem,
+                selectedStatus === option.key && styles.selectedDropdownItem
               ]}
               onPress={() => {
-                setSelectedStatus('all');
-                setShowFilterModal(false);
+                setSelectedStatus(option.key as any);
+                setShowFilterDropdown(false);
               }}
             >
-              <Text
-                style={[
-                  styles.filterOptionText,
-                  selectedStatus === 'all' && styles.selectedFilterText
-                ]}
-              >
-                All Jobs
-              </Text>
+              <Text style={[
+                styles.dropdownItemText,
+                selectedStatus === option.key && styles.selectedDropdownItemText
+              ]}>{option.label}</Text>
             </TouchableOpacity>
-
-            {(['pending', 'accepted', 'in_progress', 'completed', 'cancelled'] as const).map((status) => (
-              <TouchableOpacity
-                key={status}
-                style={[
-                  styles.filterOption,
-                  selectedStatus === status && styles.selectedFilter
-                ]}
-                onPress={() => {
-                  setSelectedStatus(status);
-                  setShowFilterModal(false);
-                }}
-              >
-                <Text
-                  style={[
-                    styles.filterOptionText,
-                    selectedStatus === status && styles.selectedFilterText
-                  ]}
-                >
-                  {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={() => setShowFilterModal(false)}
-          >
-            <Text style={styles.closeButtonText}>Close</Text>
-          </TouchableOpacity>
+          ))}
         </View>
+        <TouchableOpacity style={styles.dropdownBackdrop} onPress={() => setShowFilterDropdown(false)} />
       </View>
     );
   };
@@ -352,6 +328,13 @@ const WorkerJobsScreen = () => {
 
   return (
     <View style={styles.container}>
+      <View style={styles.headerModern}>
+        <Text style={styles.title}>My Jobs</Text>
+        <TouchableOpacity onPress={() => setShowFilterDropdown((v: boolean) => !v)}>
+          <Ionicons name="filter-outline" size={24} color={COLORS.primary} style={{ marginLeft: 8 }} />
+        </TouchableOpacity>
+      </View>
+      {renderFilterDropdown()}
       <ScrollView 
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -363,16 +346,6 @@ const WorkerJobsScreen = () => {
           />
         }
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>My Jobs</Text>
-          <TouchableOpacity 
-            style={styles.filterContainer}
-            onPress={() => setShowFilterModal(true)}
-          >
-            <Ionicons name="filter-outline" size={24} color={COLORS.primary} />
-          </TouchableOpacity>
-        </View>
-
         {filteredJobs.map((job) => (
           <View key={job._id}>
             {renderJobCard(job)}
@@ -382,7 +355,6 @@ const WorkerJobsScreen = () => {
           <Text style={styles.noJobs}>No jobs found</Text>
         )}
       </ScrollView>
-      {renderFilterModal()}
     </View>
   );
 };
@@ -533,6 +505,73 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: COLORS.primary,
     textAlign: 'center',
+  },
+  headerModern: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: SIZES.padding,
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  filterBar: {
+    backgroundColor: COLORS.background,
+    marginBottom: SIZES.base,
+  },
+  filterPill: {
+    paddingHorizontal: SIZES.large,
+    paddingVertical: SIZES.base,
+    borderRadius: 20,
+    backgroundColor: COLORS.lightGray,
+    marginRight: SIZES.base,
+  },
+  selectedFilterPill: {
+    backgroundColor: COLORS.primary,
+  },
+  filterPillText: {
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+    fontSize: FONTS.body2.fontSize,
+  },
+  selectedFilterPillText: {
+    color: COLORS.white,
+    fontWeight: '700',
+  },
+  dropdownOverlay: {
+    position: 'absolute',
+    top: 60,
+    right: 16,
+    left: 16,
+    zIndex: 10,
+    alignItems: 'flex-end',
+  },
+  dropdownMenu: {
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    paddingVertical: 4,
+    minWidth: 160,
+    ...SHADOWS.medium,
+    marginBottom: 8,
+  },
+  dropdownItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+  },
+  selectedDropdownItem: {
+    backgroundColor: COLORS.primary + '15',
+  },
+  dropdownItemText: {
+    color: COLORS.textPrimary,
+    fontSize: FONTS.body2.fontSize,
+  },
+  selectedDropdownItemText: {
+    color: COLORS.primary,
+    fontWeight: '700',
+  },
+  dropdownBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.01)',
   },
 });
 
