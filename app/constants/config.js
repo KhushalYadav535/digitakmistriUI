@@ -1,6 +1,6 @@
 // Use your computer's local IP for device testing on real devices
 // Update this to your actual local IP and port if needed
-const LOCAL_API = 'http://192.168.1.85:5000/api'; // <-- Change this to your backend IP:port/api
+const LOCAL_API = 'http://192.168.1.3:5000/api'; // <-- Change this to your backend IP:port/api
 const PROD_API = 'https://digital-mistri.onrender.com/api';
 
 // API Configuration

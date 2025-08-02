@@ -167,11 +167,13 @@ const AddNearbyShopScreen = () => {
     };
     
     // Pass form data and payment info to payment screen
+    const paymentAmount = type === 'monthly' ? 200 : 1000;
     router.push({
       pathname: '/(tabs)/payment',
       params: {
         serviceTitle: 'Nearby Shop Listing',
-        servicePrice: type === 'monthly' ? '200' : '1000',
+        servicePrice: paymentAmount.toString(),
+        totalAmount: paymentAmount.toString(), // Add totalAmount
         customFlow: 'addNearbyShop',
         shopData: JSON.stringify(formattedShopData),
       },

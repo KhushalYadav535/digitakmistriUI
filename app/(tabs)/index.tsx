@@ -66,10 +66,10 @@ const services = [
     image: require('../../assets/images/cleaner.jpeg'),
     comingSoon: true,
   },
-      {
-      id: 'mechanic',
-      name: 'Auto Part Mechanic',
-      image: require('../../assets/images/mechanic.jpeg'),
+  {
+    id: 'mechanic',
+    name: 'Auto Part Mechanic',
+    image: require('../../assets/images/mechanic.jpeg'),
     comingSoon: true,
   },
   {
@@ -78,10 +78,28 @@ const services = [
     image: require('../../assets/images/welder.jpeg'),
     comingSoon: true,
   },
-      {
-      id: 'tailor',
-      name: 'Tailor Technician',
-      image: require('../../assets/images/tailor.jpeg'),
+  {
+    id: 'tailor',
+    name: 'Tailor Technician',
+    image: require('../../assets/images/tailor.jpeg'),
+    comingSoon: true,
+  },
+  {
+    id: 'painter',
+    name: 'Painter',
+    image: require('../../assets/images/painter.jpg'),
+    comingSoon: true,
+  },
+  {
+    id: 'gastechnician',
+    name: 'Gas Technician',
+    image: require('../../assets/images/gastechnician.jpeg'),
+    comingSoon: true,
+  },
+  {
+    id: 'pestcontrol',
+    name: 'Pest Control',
+    image: require('../../assets/images/pest control.jpeg'),
     comingSoon: true,
   },
 ];

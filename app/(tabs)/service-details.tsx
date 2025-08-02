@@ -374,6 +374,7 @@ const ServiceDetailScreen = () => {
         serviceId: serviceId,
         serviceTitle: selectedService.title,
         servicePrice: selectedService.price.replace('₹', ''),
+        totalAmount: bookingData.totalAmount.toString(), // Add totalAmount
         bookingData: JSON.stringify(bookingData)
       } 
     });
@@ -477,6 +478,7 @@ const ServiceDetailScreen = () => {
               serviceId: serviceId,
               serviceTitle: selectedServicesForCart.length === 1 ? selectedServicesForCart[0].title : `Multiple Services (${selectedServicesForCart.length} items)`,
               servicePrice: calculateTotalPrice().toString(),
+              totalAmount: bookingData.totalAmount.toString(), // Add totalAmount
               selectedServices: JSON.stringify(selectedServicesForCart),
               bookingData: JSON.stringify(bookingData)
             }
