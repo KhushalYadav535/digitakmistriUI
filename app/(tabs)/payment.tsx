@@ -2,14 +2,16 @@ import React, { useState } from 'react';
 import { View, Text, Button, StyleSheet, Alert } from 'react-native';
 import RazorpayCheckout from 'react-native-razorpay';
 import { API_URL } from '../constants/config';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../context/AuthContext';
 
-const RAZORPAY_KEY_ID = 'rzp_live_y6obsZdo01uDnc';
+const RAZORPAY_KEY_ID = 'rzp_test_yCyh9MfP8o6z3K';
 
 const PaymentScreen = () => {
   const [loading, setLoading] = useState(false);
   const params = useLocalSearchParams();
+  const { user } = useAuth();
 
   // Get the total amount from params, with fallback to 0
   const totalAmount = params.totalAmount ? parseInt(params.totalAmount as string) : 0;
@@ -132,8 +134,11 @@ const PaymentScreen = () => {
               {
                 text: 'OK',
                 onPress: () => {
-                  // Navigate back or to success screen
-                  // router.push('/(tabs)/payment-success' as any);
+                  // Navigate to payment success screen
+                  router.push({
+                    pathname: '/(tabs)/payment-success' as any,
+                    params: { order_id: order_id }
+                  });
                 }
               }
             ]
@@ -264,8 +269,11 @@ const PaymentScreen = () => {
             {
               text: 'OK',
               onPress: () => {
-                // Navigate to payment success screen or back to bookings
-                // router.push('/(tabs)/payment-success' as any);
+                // Navigate to payment success screen
+                router.push({
+                  pathname: '/(tabs)/payment-success' as any,
+                  params: { order_id: order_id }
+                });
               }
             }
           ]
@@ -290,16 +298,19 @@ const PaymentScreen = () => {
         description: isMultipleService ? 'Multiple Services Payment' : 'Service Payment',
         order_id,
         prefill: {
-          email: 'customer@example.com',
+          email: user?.email || 'customer@example.com',
           contact: bookingData.phone,
         },
         theme: { color: '#007AFF' },
       })
         .then((paymentData: any) => {
           // Payment Success
-          Alert.alert('Payment Success', `Payment ID: ${paymentData.razorpay_payment_id}`);
-          // Navigate to payment success screen
-          // router.push('/(tabs)/payment-success' as any);
+          console.log('Payment successful:', paymentData);
+          // Navigate to payment success screen with order_id
+          router.push({
+            pathname: '/(tabs)/payment-success' as any,
+            params: { order_id: order_id }
+          });
         })
         .catch((error: any) => {
           // Payment Failed
