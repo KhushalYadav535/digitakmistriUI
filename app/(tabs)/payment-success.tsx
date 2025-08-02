@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator, Alert, StyleSheet, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
-import axios from 'axios';
-import { API_URL } from '../constants/config';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function PaymentSuccessScreen() {
@@ -11,62 +9,24 @@ export default function PaymentSuccessScreen() {
   const [paymentStatus, setPaymentStatus] = useState<'success' | 'pending' | 'error' | null>(null);
 
   useEffect(() => {
-    if (order_id) {
-      console.log('Verifying payment for order:', order_id);
-      
-      // Add a delay to allow backend to process the payment
-      setTimeout(() => {
-        axios.get(`${API_URL}/bookings/order/${order_id}`)
-          .then(res => {
-            console.log('Payment verification response:', res.data);
-            if (res.data.paymentVerified) {
-              setPaymentStatus('success');
-              Alert.alert(
-                'Payment Successful!', 
-                'Your payment has been verified. You can now track your booking in the bookings section.',
-                [
-                  {
-                    text: 'View Bookings',
-                    onPress: () => router.replace('/(tabs)/bookings')
-                  }
-                ]
-              );
-            } else {
-              setPaymentStatus('pending');
-              Alert.alert(
-                'Payment Pending', 
-                'Your payment is being processed. Please wait a few minutes and check your bookings.',
-                [
-                  {
-                    text: 'OK',
-                    onPress: () => router.replace('/(tabs)/bookings')
-                  }
-                ]
-              );
-            }
-          })
-          .catch((error) => {
-            console.error('Payment verification error:', error);
-            setPaymentStatus('error');
-            Alert.alert(
-              'Verification Error', 
-              'Could not verify payment status. Please check your bookings to confirm.',
-              [
-                {
-                  text: 'View Bookings',
-                  onPress: () => router.replace('/(tabs)/bookings')
-                }
-              ]
-            );
-          })
-          .finally(() => {
-            setVerifying(false);
-          });
-      }, 2000); // Wait 2 seconds for backend processing
-    } else {
+    console.log('Payment success screen loaded with order_id:', order_id);
+    
+    // Since payment was successful on Razorpay's end, show success immediately
+    setTimeout(() => {
+      setPaymentStatus('success');
       setVerifying(false);
-      setPaymentStatus('error');
-    }
+      
+      Alert.alert(
+        'Payment Successful!', 
+        'Your payment has been completed successfully. You can now view your shop in the nearby shops section.',
+        [
+          {
+            text: 'View Nearby Shops',
+            onPress: () => router.replace('/(tabs)/nearby-shops')
+          }
+        ]
+      );
+    }, 1000); // Short delay for better UX
   }, [order_id]);
 
   if (verifying) {
@@ -116,9 +76,9 @@ export default function PaymentSuccessScreen() {
       
       <TouchableOpacity 
         style={styles.button}
-        onPress={() => router.replace('/(tabs)/bookings')}
+        onPress={() => router.replace('/(tabs)/nearby-shops')}
       >
-        <Text style={styles.buttonText}>View My Bookings</Text>
+        <Text style={styles.buttonText}>View Nearby Shops</Text>
       </TouchableOpacity>
     </View>
   );

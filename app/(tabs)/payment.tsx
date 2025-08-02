@@ -146,8 +146,71 @@ const PaymentScreen = () => {
           return;
         }
 
-        // For real payments, would open Razorpay here
-        Alert.alert('Payment Success', 'Shop listing payment successful!');
+        // Check if RazorpayCheckout is available
+        console.log('RazorpayCheckout:', RazorpayCheckout);
+        if (!RazorpayCheckout || !RazorpayCheckout.open) {
+          Alert.alert('Error', 'RazorpayCheckout is not available. Make sure the native module is linked and you are running on a real device.');
+          setLoading(false);
+          return;
+        }
+
+        // Open Razorpay Checkout for shop payment
+        RazorpayCheckout.open({
+          key: RAZORPAY_KEY_ID,
+          amount: amount,
+          currency: currency,
+          name: 'Digital Mistri',
+          description: 'Nearby Shop Listing Payment',
+          order_id,
+          prefill: {
+            email: user?.email || 'customer@example.com',
+            contact: shopData.phone || '',
+          },
+          theme: { color: '#007AFF' },
+          // Add test mode configuration
+          config: {
+            display: {
+              blocks: {
+                banks: {
+                  name: "Pay using UPI",
+                  instruments: [
+                    {
+                      method: "upi"
+                    }
+                  ]
+                }
+              },
+              sequence: ["block.banks"],
+              preferences: {
+                show_default_blocks: false
+              }
+            }
+          }
+        })
+          .then((paymentData: any) => {
+            // Payment Success
+            console.log('Shop payment successful:', paymentData);
+            // Navigate to payment success screen with order_id
+            router.push({
+              pathname: '/(tabs)/payment-success' as any,
+              params: { order_id: order_id }
+            });
+          })
+          .catch((error: any) => {
+            // Payment Failed
+            let userMessage = 'Payment was not completed.';
+            if (error && typeof error === 'object') {
+              if (error.code === 'NETWORK_ERROR') {
+                userMessage = 'Network error. Please check your internet connection and try again.';
+              } else if (error.description) {
+                userMessage = error.description;
+              } else if (error.reason === 'Payment cancelled by user') {
+                userMessage = 'Payment was cancelled.';
+              }
+            }
+            console.error('Shop payment failed:', error);
+            Alert.alert('Payment Failed', userMessage);
+          });
         return;
       }
 
@@ -302,6 +365,25 @@ const PaymentScreen = () => {
           contact: bookingData.phone,
         },
         theme: { color: '#007AFF' },
+        // Add test mode configuration
+        config: {
+          display: {
+            blocks: {
+              banks: {
+                name: "Pay using UPI",
+                instruments: [
+                  {
+                    method: "upi"
+                  }
+                ]
+              }
+            },
+            sequence: ["block.banks"],
+            preferences: {
+              show_default_blocks: false
+            }
+          }
+        }
       })
         .then((paymentData: any) => {
           // Payment Success
