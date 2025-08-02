@@ -49,7 +49,24 @@ const LoginScreen = () => {
 
     try {
       setLoading(true);
+      console.log('=== Login Debug Info ===');
+      console.log('API URL:', API_URL);
+      console.log('Environment:', __DEV__ ? 'Development' : 'Production');
       console.log('Attempting login with email:', email);
+      
+      // Test API connection first
+      try {
+        console.log('Testing API connection...');
+        const testResponse = await axios.get(`${API_URL.replace('/api', '')}/test`);
+        console.log('API test successful:', testResponse.data);
+      } catch (testError: any) {
+        console.error('API test failed:', testError.message);
+        console.error('Test error details:', {
+          status: testError.response?.status,
+          data: testError.response?.data,
+          url: testError.config?.url
+        });
+      }
       
       const response = await axios.post(`${API_URL}/customer/login`, {
         email,
@@ -74,7 +91,12 @@ const LoginScreen = () => {
       // The AuthContext will handle the routing automatically
       // No need to manually redirect here
     } catch (error: any) {
-      console.error('Login error:', error);
+      console.error('=== Login Error Details ===');
+      console.error('Error message:', error.message);
+      console.error('Error response status:', error.response?.status);
+      console.error('Error response data:', error.response?.data);
+      console.error('Error config URL:', error.config?.url);
+      console.error('Error config method:', error.config?.method);
       
       // Check if user needs email verification
       if (error.response?.data?.requiresVerification) {

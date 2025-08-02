@@ -1,11 +1,14 @@
 // Use your computer's local IP for device testing on real devices
 // Update this to your actual local IP and port if needed
-const LOCAL_API = 'http://192.168.1.3:5000/api'; // <-- Change this to your backend IP:port/api
+const LOCAL_API = 'http://192.168.1.3:5000/api'; // <-- Updated to your current IP address
 const PROD_API = 'https://digital-mistri.onrender.com/api';
+
+// Check if we're in development mode
+const isDevelopment = __DEV__ || process.env.NODE_ENV === 'development';
 
 // API Configuration
 export const API_CONFIG = {
-  baseURL: process.env.NODE_ENV === 'development' ? LOCAL_API : PROD_API,
+  baseURL: isDevelopment ? LOCAL_API : PROD_API,
   timeout: 15000, // Increased to 15 seconds
   retryAttempts: 5, // Increased retry attempts
   retryDelay: 2000, // Increased delay between retries to 2 seconds
@@ -16,7 +19,7 @@ export const API_CONFIG = {
 };
 
 // Directly export API_URL for synchronous use in frontend
-export const API_URL = process.env.NODE_ENV === 'development' ? LOCAL_API : PROD_API;
+export const API_URL = isDevelopment ? LOCAL_API : PROD_API;
 
 // Error Messages
 export const API_ERRORS = {
@@ -27,9 +30,9 @@ export const API_ERRORS = {
   VALIDATION_ERROR: 'Invalid input. Please check your data.'
 };
 
-export const ENV = process.env.NODE_ENV || 'development';
+export const ENV = isDevelopment ? 'development' : 'production';
 
-export const SOCKET_URL = process.env.NODE_ENV === 'development' ? 'http://192.168.1.43:5000' : 'https://digital-mistri.onrender.com';
+export const SOCKET_URL = isDevelopment ? 'http://192.168.1.3:5000' : 'https://digital-mistri.onrender.com';
 
 
 

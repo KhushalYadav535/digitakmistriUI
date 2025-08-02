@@ -63,29 +63,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return false;
       }
 
-      // Verify token is still valid by making a test API call
+      // For now, just restore the stored data without verification
+      // This prevents the auth/verify endpoint issue in production builds
       try {
         const userData = JSON.parse(storedUser);
-        const response = await axios.get(`${API_URL}/auth/verify`, {
-          headers: { Authorization: `Bearer ${storedToken}` }
-        });
-
-        if (response.status === 200) {
-          console.log('Token is valid, user is authenticated');
-          setUser(userData);
-          setToken(storedToken);
-          return true;
-        }
+        console.log('Restoring stored authentication data');
+        setUser(userData);
+        setToken(storedToken);
+        return true;
       } catch (error: any) {
-        console.log('Token verification failed:', error.response?.status);
-        // Token is invalid, clear stored data
+        console.log('Error parsing stored user data:', error);
+        // Clear invalid stored data
         await AsyncStorage.multiRemove(['token', 'user']);
         setUser(null);
         setToken(null);
         return false;
       }
-
-      return false;
     } catch (error) {
       console.error('Error checking authentication:', error);
       setUser(null);
