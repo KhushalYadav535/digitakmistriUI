@@ -11,6 +11,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../constants/config';
 import { getImageUrl } from '../utils/imageUtils';
+import { fetchAllServices } from '../utils/serviceUtils';
 
 interface Shop {
   _id: string;
@@ -116,6 +117,7 @@ const TabLayout = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [nearbyShops, setNearbyShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dynamicServices, setDynamicServices] = useState<any>({});
   const [userLocation, setUserLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -144,6 +146,7 @@ const TabLayout = () => {
 
   useEffect(() => {
     getLocation();
+    fetchDynamicServices();
   }, []);
 
   useEffect(() => {
@@ -151,6 +154,72 @@ const TabLayout = () => {
       loadNearbyShops();
     }
   }, [userLocation]);
+
+  const fetchDynamicServices = async () => {
+    try {
+      const allServices = await fetchAllServices();
+      console.log('🔍 Dynamic services fetched:', Object.keys(allServices));
+      setDynamicServices(allServices);
+    } catch (error) {
+      console.error('Error fetching dynamic services:', error);
+    }
+  };
+
+  // Merge static and dynamic services
+  const getAllServices = () => {
+    const mergedServices = [...services];
+    console.log('🔍 Static services:', mergedServices.map(s => ({ id: s.id, name: s.name })));
+    
+    // Add dynamic services that don't exist in static services
+    Object.keys(dynamicServices).forEach(serviceType => {
+      // Check if this service type already exists in static services
+      const existingService = mergedServices.find(s => 
+        s.id === serviceType || 
+        s.name.toLowerCase() === serviceType.toLowerCase() ||
+        s.name.toLowerCase().includes(serviceType.toLowerCase()) ||
+        serviceType.toLowerCase().includes(s.name.toLowerCase())
+      );
+      
+      if (!existingService) {
+        mergedServices.push({
+          id: serviceType,
+          name: dynamicServices[serviceType].name,
+          image: require('../../assets/images/electrician.jpeg'), // Default image
+        });
+        console.log(`✅ Added dynamic service: ${serviceType} - ${dynamicServices[serviceType].name}`);
+      } else {
+        console.log(`⏭️ Skipping duplicate service: ${serviceType} (already exists as ${existingService.name})`);
+      }
+    });
+    
+    // Remove duplicates based on service name (case-insensitive)
+    const uniqueServices = mergedServices.filter((service, index, self) => 
+      index === self.findIndex(s => 
+        s.name.toLowerCase() === service.name.toLowerCase() ||
+        s.id.toLowerCase() === service.id.toLowerCase()
+      )
+    );
+    
+    console.log('🔍 Final services:', uniqueServices.map(s => ({ id: s.id, name: s.name })));
+    return uniqueServices;
+  };
+
+  // Filter services based on search query
+  const filteredServices = getAllServices().filter(service =>
+    service.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    service.id.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Filter nearby shops based on search query
+  const filteredNearbyShops = nearbyShops.filter(shop =>
+    shop.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    shop.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    shop.services.some(service => 
+      service.toLowerCase().includes(searchQuery.toLowerCase())
+    ) ||
+    shop.address.street.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    shop.address.city.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const getLocation = async () => {
     try {
@@ -241,12 +310,26 @@ const TabLayout = () => {
             </View>
           </View>
           <View style={styles.searchContainer}>
-            <TextInput
-              style={styles.searchInput}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Search"
-            />
+            <View style={styles.searchInputContainer}>
+              <Ionicons name="search" size={20} color={COLORS.textSecondary} style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search services or shops..."
+                placeholderTextColor={COLORS.textSecondary}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
+                  <Ionicons name="close-circle" size={20} color={COLORS.textSecondary} />
+                </TouchableOpacity>
+              )}
+            </View>
+            {searchQuery.length > 0 && (
+              <Text style={styles.searchResultsCount}>
+                {filteredServices.length} service{filteredServices.length !== 1 ? 's' : ''} • {filteredNearbyShops.length} shop{filteredNearbyShops.length !== 1 ? 's' : ''} found
+              </Text>
+            )}
           </View>
           <View style={styles.section}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
@@ -257,65 +340,73 @@ const TabLayout = () => {
               <Text style={[styles.sectionTitle, { fontSize: 22, letterSpacing: 1 }]}>Services</Text>
             </View>
             <View style={styles.servicesGrid}>
-              {services.map((service, idx) => (
-                <Animated.View
-                  key={service.id}
-                  style={{ opacity: fadeAnim, transform: [{ scale: fadeAnim }], width: '50%' }}
-                >
-                  <TouchableOpacity
-                    style={[
-                      styles.serviceCard, 
-                      { 
-                        backgroundColor: service.comingSoon ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.65)', 
-                        borderWidth: 1, 
-                        borderColor: service.comingSoon ? '#ccc' : '#e0e0e0', 
-                        shadowColor: '#43C6AC', 
-                        shadowOpacity: service.comingSoon ? 0.05 : 0.10, 
-                        shadowRadius: 22, 
-                        elevation: service.comingSoon ? 2 : 6 
-                      }
-                    ]}
-                    onPressIn={() => !service.comingSoon && Animated.spring(fadeAnim, { toValue: 1.08, useNativeDriver: true }).start()}
-                    onPressOut={() => !service.comingSoon && Animated.spring(fadeAnim, { toValue: 1, useNativeDriver: true }).start()}
-                    onPress={() => {
-                      if (service.comingSoon) {
-                        Alert.alert('Coming Soon', 'This service will be available soon!');
-                      } else {
-                        router.push({ 
-                          pathname: '/service-details', 
-                          params: { serviceId: service.id } 
-                        } as any);
-                      }
-                    }}
-                    activeOpacity={service.comingSoon ? 1 : 0.88}
+              {filteredServices.length === 0 && searchQuery.length > 0 ? (
+                <View style={styles.noResultsContainer}>
+                  <Ionicons name="search" size={48} color={COLORS.textSecondary} />
+                  <Text style={styles.noResultsText}>No services found for "{searchQuery}"</Text>
+                  <Text style={styles.noResultsSubtext}>Try searching with different keywords</Text>
+                </View>
+              ) : (
+                filteredServices.map((service, idx) => (
+                  <Animated.View
+                    key={service.id}
+                    style={{ opacity: fadeAnim, transform: [{ scale: fadeAnim }], width: '50%' }}
                   >
-                    <BlurView intensity={30} tint="light" style={[styles.serviceImageWrapper, { borderWidth: 0 }]}>
-                      <Image 
-                        source={service.image} 
-                        style={[
-                          styles.serviceImage, 
-                          service.comingSoon && { opacity: 0.6 }
-                        ]} 
-                      />
-                      {service.comingSoon && (
-                        <View style={styles.comingSoonOverlay}>
-                          <Text style={styles.comingSoonText}>Coming Soon</Text>
-                        </View>
-                      )}
-                    </BlurView>
-                    <Text style={[
-                      styles.serviceName, 
-                      { 
-                        color: service.comingSoon ? '#999' : '#191654', 
-                        fontWeight: 'bold', 
-                        fontSize: 18 
-                      }
-                    ]}>
-                      {service.name}
-                    </Text>
-                  </TouchableOpacity>
-                </Animated.View>
-              ))}
+                    <TouchableOpacity
+                      style={[
+                        styles.serviceCard, 
+                        { 
+                          backgroundColor: service.comingSoon ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.65)', 
+                          borderWidth: 1, 
+                          borderColor: service.comingSoon ? '#ccc' : '#e0e0e0', 
+                          shadowColor: '#43C6AC', 
+                          shadowOpacity: service.comingSoon ? 0.05 : 0.10, 
+                          shadowRadius: 22, 
+                          elevation: service.comingSoon ? 2 : 6 
+                        }
+                      ]}
+                      onPressIn={() => !service.comingSoon && Animated.spring(fadeAnim, { toValue: 1.08, useNativeDriver: true }).start()}
+                      onPressOut={() => !service.comingSoon && Animated.spring(fadeAnim, { toValue: 1, useNativeDriver: true }).start()}
+                      onPress={() => {
+                        if (service.comingSoon) {
+                          Alert.alert('Coming Soon', 'This service will be available soon!');
+                        } else {
+                          router.push({ 
+                            pathname: '/service-details', 
+                            params: { serviceId: service.id } 
+                          } as any);
+                        }
+                      }}
+                      activeOpacity={service.comingSoon ? 1 : 0.88}
+                    >
+                      <BlurView intensity={30} tint="light" style={[styles.serviceImageWrapper, { borderWidth: 0 }]}>
+                        <Image 
+                          source={service.image} 
+                          style={[
+                            styles.serviceImage, 
+                            service.comingSoon && { opacity: 0.6 }
+                          ]} 
+                        />
+                        {service.comingSoon && (
+                          <View style={styles.comingSoonOverlay}>
+                            <Text style={styles.comingSoonText}>Coming Soon</Text>
+                          </View>
+                        )}
+                      </BlurView>
+                      <Text style={[
+                        styles.serviceName, 
+                        { 
+                          color: service.comingSoon ? '#999' : '#191654', 
+                          fontWeight: 'bold', 
+                          fontSize: 18 
+                        }
+                      ]}>
+                        {service.name}
+                      </Text>
+                    </TouchableOpacity>
+                  </Animated.View>
+                ))
+              )}
             </View>
           </View>
           <View style={styles.section}>
@@ -330,12 +421,20 @@ const TabLayout = () => {
                 <View style={styles.loadingContainer}>
                   <ActivityIndicator size="small" color={COLORS.primary} />
                 </View>
-              ) : nearbyShops.length === 0 ? (
+              ) : filteredNearbyShops.length === 0 ? (
                 <View style={styles.emptyContainer}>
-                  <Text style={styles.emptyText}>No shops found nearby</Text>
+                  <Text style={styles.emptyText}>
+                    {searchQuery.length > 0 
+                      ? `No shops found for "${searchQuery}"` 
+                      : 'No shops found nearby'
+                    }
+                  </Text>
+                  {searchQuery.length > 0 && (
+                    <Text style={styles.emptySubtext}>Try searching with different keywords</Text>
+                  )}
                 </View>
               ) : (
-                nearbyShops.map((shop) => (
+                filteredNearbyShops.map((shop) => (
                   <Animated.View
                     key={shop._id}
                     style={[
@@ -435,6 +534,11 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
   searchIcon: {
     marginRight: 12,
   },
@@ -442,6 +546,16 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: COLORS.textPrimary,
+  },
+  clearButton: {
+    padding: 4,
+  },
+  searchResultsCount: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    marginTop: 8,
+    marginLeft: 20,
+    marginBottom: 16,
   },
   section: {
     marginBottom: 24,
@@ -592,6 +706,12 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     textAlign: 'center'
   },
+  emptySubtext: {
+    fontSize: FONTS.body3.fontSize,
+    color: COLORS.textSecondary,
+    marginTop: 5,
+    textAlign: 'center',
+  },
   shopImageOverlay: {
     position: 'absolute',
     top: 0,
@@ -619,7 +739,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
-  }
+  },
+  noResultsContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  noResultsText: {
+    fontSize: 18,
+    color: COLORS.textSecondary,
+    marginTop: 15,
+    textAlign: 'center',
+  },
+  noResultsSubtext: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    marginTop: 5,
+    textAlign: 'center',
+  },
 });
 
 export default TabLayout;

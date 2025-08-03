@@ -77,6 +77,13 @@ const WorkerLayout = () => {
           title: 'Job Details',
         }}
       />
+      <Tabs.Screen
+        name="ratings"
+        options={{
+          href: null,
+          title: 'Ratings',
+        }}
+      />
     </Tabs>
   );
 };

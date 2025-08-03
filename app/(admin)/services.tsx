@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 import { API_URL } from '../constants/config';
@@ -147,9 +148,25 @@ const ServicesScreen = () => {
   const [error, setError] = useState('');
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [addServiceModalVisible, setAddServiceModalVisible] = useState(false);
   const [selectedService, setSelectedService] = useState<ServiceItem | null>(null);
   const [editPrice, setEditPrice] = useState('');
   const [updating, setUpdating] = useState(false);
+  
+  // New service form state
+  const [newServiceType, setNewServiceType] = useState('');
+  const [newServiceName, setNewServiceName] = useState('');
+  const [newServiceTitle, setNewServiceTitle] = useState('');
+  const [newServicePrice, setNewServicePrice] = useState('');
+  const [newServiceDescription, setNewServiceDescription] = useState('');
+  const [showServiceTypeDropdown, setShowServiceTypeDropdown] = useState(false);
+
+  // Available service types for dropdown
+  const availableServiceTypes = Object.entries(serviceMeta).map(([key, value]) => ({
+    key: key,
+    name: value.name,
+    description: value.description
+  }));
 
   const fetchServices = async () => {
     try {
@@ -251,7 +268,7 @@ const ServicesScreen = () => {
         )
       );
       
-      // Clear the service price cache so customers see updated prices
+      // Clear the service price cache so customers see updated prices immediately
       clearServicePriceCache();
       
       setEditModalVisible(false);
@@ -259,7 +276,7 @@ const ServicesScreen = () => {
       setEditPrice('');
       Alert.alert(
         'Success', 
-        'Service price updated successfully!\n\nNote: Customer app will show updated prices within 30 seconds or after refresh.',
+        'Service price updated successfully!\n\nNote: Customer app will show updated prices immediately or after refresh.',
         [{ text: 'OK' }]
       );
     } catch (err: any) {
@@ -296,6 +313,75 @@ const ServicesScreen = () => {
     } catch (err: any) {
       console.error('Error deleting service:', err);
       Alert.alert('Error', err.response?.data?.message || 'Failed to delete service');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleServiceTypeSelect = (serviceType: string, serviceName: string) => {
+    setNewServiceType(serviceType);
+    setNewServiceName(serviceName);
+    setShowServiceTypeDropdown(false);
+  };
+
+  const addNewService = async () => {
+    if (!newServiceType.trim() || !newServiceName.trim() || !newServiceTitle.trim() || !newServicePrice.trim()) {
+      Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+
+    const price = parseFloat(newServicePrice);
+    if (isNaN(price) || price <= 0) {
+      Alert.alert('Error', 'Please enter a valid price');
+      return;
+    }
+
+    try {
+      setUpdating(true);
+      
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.post(
+        `${API_URL}/admin/services/add`,
+        {
+          serviceType: newServiceType.toLowerCase(),
+          serviceName: newServiceName,
+          serviceTitle: newServiceTitle,
+          price: price,
+          description: newServiceDescription
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      // Add to local state
+      const newService: ServiceItem = {
+        serviceType: newServiceType.toLowerCase(),
+        serviceName: newServiceName,
+        serviceTitle: newServiceTitle,
+        price: `₹${price}`,
+        isActive: true,
+      };
+      
+      setServices(prev => [newService, ...prev]);
+      
+      // Clear form
+      setNewServiceType('');
+      setNewServiceName('');
+      setNewServiceTitle('');
+      setNewServicePrice('');
+      setNewServiceDescription('');
+      setAddServiceModalVisible(false);
+      
+      // Clear the service price cache so customers see updated services
+      clearServicePriceCache();
+      
+      Alert.alert(
+        'Success', 
+        'New service added successfully!\n\nNote: Customer app will show the new service within 30 seconds or after refresh.',
+        [{ text: 'OK' }]
+      );
+    } catch (err: any) {
+      console.error('Error adding service:', err);
+      Alert.alert('Error', err.response?.data?.message || 'Failed to add new service');
     } finally {
       setUpdating(false);
     }
@@ -358,8 +444,19 @@ const ServicesScreen = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Services Management</Text>
-        <Text style={styles.subtitle}>Manage service prices and availability</Text>
+        <View style={styles.headerContent}>
+          <View>
+            <Text style={styles.title}>Services Management</Text>
+            <Text style={styles.subtitle}>Manage service prices and availability</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.addServiceButton}
+            onPress={() => setAddServiceModalVisible(true)}
+          >
+            <Ionicons name="add" size={20} color={COLORS.white} />
+            <Text style={styles.addServiceButtonText}>Add Service</Text>
+          </TouchableOpacity>
+        </View>
       </View>
       
       <FlatList
@@ -497,6 +594,115 @@ const ServicesScreen = () => {
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* Add New Service Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={addServiceModalVisible}
+        onRequestClose={() => setAddServiceModalVisible(false)}
+      >
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Add New Service</Text>
+              <TouchableOpacity 
+                onPress={() => setAddServiceModalVisible(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.modalBody}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Service Type *</Text>
+                <TouchableOpacity
+                  style={styles.dropdownButton}
+                  onPress={() => setShowServiceTypeDropdown(!showServiceTypeDropdown)}
+                >
+                  <Text style={newServiceType ? styles.dropdownButtonText : styles.dropdownPlaceholder}>
+                    {newServiceType ? newServiceName : 'Select a service type'}
+                  </Text>
+                  <Ionicons 
+                    name={showServiceTypeDropdown ? "chevron-up" : "chevron-down"} 
+                    size={20} 
+                    color={COLORS.textSecondary} 
+                  />
+                </TouchableOpacity>
+                
+                {showServiceTypeDropdown && (
+                  <View style={styles.dropdownList}>
+                    {availableServiceTypes.map((serviceType) => (
+                      <TouchableOpacity
+                        key={serviceType.key}
+                        style={styles.dropdownItem}
+                        onPress={() => handleServiceTypeSelect(serviceType.key, serviceType.name)}
+                      >
+                        <Text style={styles.dropdownItemText}>{serviceType.name}</Text>
+                        <Text style={styles.dropdownItemDescription}>{serviceType.description}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+              
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Service Title *</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={newServiceTitle}
+                  onChangeText={setNewServiceTitle}
+                  placeholder="e.g., Pipe Repair, Switch Installation"
+                />
+              </View>
+              
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Price (₹) *</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={newServicePrice}
+                  onChangeText={setNewServicePrice}
+                  placeholder="e.g., 200"
+                  keyboardType="numeric"
+                />
+              </View>
+              
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Description (Optional)</Text>
+                <TextInput
+                  style={[styles.textInput, { height: 80, textAlignVertical: 'top' }]}
+                  value={newServiceDescription}
+                  onChangeText={setNewServiceDescription}
+                  placeholder="Brief description of the service"
+                  multiline
+                />
+              </View>
+            </ScrollView>
+            
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={styles.cancelModalButton}
+                onPress={() => setAddServiceModalVisible(false)}
+              >
+                <Text style={styles.cancelModalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.updateModalButton, updating && styles.disabledButton]}
+                onPress={addNewService}
+                disabled={updating}
+              >
+                <Text style={styles.updateModalButtonText}>
+                  {updating ? 'Adding...' : 'Add Service'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -779,6 +985,66 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.6,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  addServiceButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  addServiceButtonText: {
+    color: COLORS.white,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  dropdownButton: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    padding: 12,
+    backgroundColor: COLORS.white,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dropdownButtonText: {
+    fontSize: 16,
+    color: COLORS.text,
+  },
+  dropdownPlaceholder: {
+    fontSize: 16,
+    color: COLORS.textSecondary,
+  },
+  dropdownList: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    backgroundColor: COLORS.white,
+    marginTop: 4,
+    maxHeight: 200,
+    zIndex: 1000,
+  },
+  dropdownItem: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  dropdownItemText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 2,
+  },
+  dropdownItemDescription: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
   },
 });
 

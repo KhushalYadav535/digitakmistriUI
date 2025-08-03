@@ -34,7 +34,10 @@ export const ENV = isDevelopment ? 'development' : 'production';
 
 export const SOCKET_URL = isDevelopment ? 'http://192.168.1.3:5000' : 'https://digital-mistri.onrender.com';
 
-
+// Function to get current API URL
+export const getCurrentApiUrl = async () => {
+  return isDevelopment ? LOCAL_API : PROD_API;
+};
 
 // For backward compatibility
 export default {

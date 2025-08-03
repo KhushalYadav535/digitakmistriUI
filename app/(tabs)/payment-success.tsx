@@ -2,30 +2,117 @@ import { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator, Alert, StyleSheet, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { API_URL } from '../constants/config';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function PaymentSuccessScreen() {
   const { order_id } = useLocalSearchParams();
   const [verifying, setVerifying] = useState(true);
   const [paymentStatus, setPaymentStatus] = useState<'success' | 'pending' | 'error' | null>(null);
+  const [bookingId, setBookingId] = useState<string | null>(null);
+  const [paymentType, setPaymentType] = useState<string | null>(null);
 
   useEffect(() => {
     console.log('Payment success screen loaded with order_id:', order_id);
     
+    const verifyPaymentAndGetBooking = async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        if (!token) {
+          console.error('No token found');
+          setPaymentStatus('error');
+          setVerifying(false);
+          return;
+        }
+
+        // Get booking ID and payment type from AsyncStorage
+        const storedBookingId = await AsyncStorage.getItem('lastBookingId');
+        const storedPaymentType = await AsyncStorage.getItem('paymentType');
+        const storedShopData = await AsyncStorage.getItem('pendingShopData');
+        
+        if (storedBookingId) {
+          setBookingId(storedBookingId);
+          // Clear the stored booking ID after retrieving it
+          await AsyncStorage.removeItem('lastBookingId');
+        }
+        
+        if (storedPaymentType) {
+          setPaymentType(storedPaymentType);
+          // Clear payment type
+          await AsyncStorage.removeItem('paymentType');
+        }
+
+        // Handle shop creation after payment success
+        if (storedPaymentType === 'shop' && storedShopData) {
+          try {
+            const shopData = JSON.parse(storedShopData);
+            console.log('🏪 Creating shop after payment success:', shopData);
+            
+            // Create the shop via API with base64 image
+            const shopResponse = await fetch(`${API_URL}/nearby-shops/customer-with-image`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify(shopData)
+            });
+
+            if (shopResponse.ok) {
+              const createdShop = await shopResponse.json();
+              console.log('✅ Shop created successfully:', createdShop);
+              // Clear shop data after successful creation
+              await AsyncStorage.removeItem('pendingShopData');
+            } else {
+              console.error('❌ Failed to create shop:', await shopResponse.text());
+            }
+          } catch (shopError) {
+            console.error('❌ Error creating shop:', shopError);
+          }
+        }
+        
+        setPaymentStatus('success');
+        setVerifying(false);
+        
+        // Show success message based on payment type
+        const isShopPayment = storedPaymentType === 'shop';
+        const alertMessage = isShopPayment 
+          ? 'Your payment has been completed successfully and your shop has been added! You can now view your shop in the nearby shops section.'
+          : 'Your payment has been completed successfully. You can now view your booking details.';
+        
+        const alertButtonText = isShopPayment ? 'View Nearby Shops' : 'View Booking Details';
+        
+        Alert.alert(
+          'Payment Successful!', 
+          alertMessage,
+          [
+            {
+              text: alertButtonText,
+              onPress: () => {
+                if (isShopPayment) {
+                  // Navigate to nearby shops for shop payments
+                  router.replace('/(tabs)/nearby-shops');
+                } else if (storedBookingId) {
+                  // Navigate directly to the specific booking details
+                  router.replace(`/(tabs)/booking-status/${storedBookingId}`);
+                } else {
+                  // Fallback to bookings list
+                  router.replace('/(tabs)/bookings');
+                }
+              }
+            }
+          ]
+        );
+      } catch (error) {
+        console.error('Error verifying payment:', error);
+        setPaymentStatus('error');
+        setVerifying(false);
+      }
+    };
+
     // Since payment was successful on Razorpay's end, show success immediately
     setTimeout(() => {
-      setPaymentStatus('success');
-      setVerifying(false);
-      
-      Alert.alert(
-        'Payment Successful!', 
-        'Your payment has been completed successfully. You can now view your shop in the nearby shops section.',
-        [
-          {
-            text: 'View Nearby Shops',
-            onPress: () => router.replace('/(tabs)/nearby-shops')
-          }
-        ]
-      );
+      verifyPaymentAndGetBooking();
     }, 1000); // Short delay for better UX
   }, [order_id]);
 
@@ -76,9 +163,24 @@ export default function PaymentSuccessScreen() {
       
       <TouchableOpacity 
         style={styles.button}
-        onPress={() => router.replace('/(tabs)/nearby-shops')}
+        onPress={() => {
+          // Check if this was a shop payment
+          const isShopPayment = paymentType === 'shop';
+          if (isShopPayment) {
+            // Navigate to nearby shops for shop payments
+            router.replace('/(tabs)/nearby-shops');
+          } else if (bookingId) {
+            // Navigate directly to the specific booking details
+            router.replace(`/(tabs)/booking-status/${bookingId}`);
+          } else {
+            // Fallback to bookings list
+            router.replace('/(tabs)/bookings');
+          }
+        }}
       >
-        <Text style={styles.buttonText}>View Nearby Shops</Text>
+        <Text style={styles.buttonText}>
+          {paymentType === 'shop' ? 'View Nearby Shops' : 'View Booking Details'}
+        </Text>
       </TouchableOpacity>
     </View>
   );

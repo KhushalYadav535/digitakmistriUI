@@ -12,6 +12,7 @@ interface Worker {
   email: string;
   phone: string;
   isVerified: boolean;
+  isAvailable: boolean;
   services: string[];
   stats: {
     totalBookings: number;
@@ -134,12 +135,24 @@ const AdminDashboardScreen = () => {
       onPress: () => {},
     },
     {
-      id: 'newRequests',
-      title: 'New Requests',
-      value: overview?.newRequests ?? '-',
-      icon: 'notifications',
+      id: 'adminCommission',
+      title: 'Commission',
+      value: overview?.adminCommission ? `₹${overview.adminCommission}` : '-',
+      icon: 'cash',
       color: COLORS.error,
       onPress: () => {},
+    },
+  ];
+
+  // Additional Action Cards
+  const actionCards = [
+    {
+      id: 'workerRatings',
+      title: 'Worker Ratings',
+      subtitle: 'View all worker ratings and reviews',
+      icon: 'star',
+      color: COLORS.warning,
+      onPress: () => router.push('/(admin)/worker-ratings'),
     },
   ];
 
@@ -170,6 +183,68 @@ const AdminDashboardScreen = () => {
             </Card>
           </TouchableOpacity>
         ))}
+      </View>
+
+      {/* Action Cards */}
+      <View style={styles.actionCardsContainer}>
+        {actionCards.map((action) => (
+          <TouchableOpacity key={action.id} onPress={action.onPress} activeOpacity={0.85}>
+            <Card variant="elevated" style={styles.actionCard}>
+              <View style={styles.actionIconContainer}>
+                <Ionicons name={action.icon as any} size={28} color={action.color} />
+              </View>
+              <View style={styles.actionContent}>
+                <Text style={styles.actionTitle}>{action.title}</Text>
+                <Text style={styles.actionSubtitle}>{action.subtitle}</Text>
+              </View>
+              <Ionicons name="arrow-forward" size={20} color={COLORS.textSecondary} />
+            </Card>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Worker Availability */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Worker Availability</Text>
+        </View>
+        <Card variant="elevated" style={styles.availabilityCard}>
+          <View style={styles.availabilityStats}>
+            <View style={styles.availabilityItem}>
+              <View style={styles.availabilityIconContainer}>
+                <Ionicons name="checkmark-circle" size={24} color={COLORS.success} />
+              </View>
+              <View style={styles.availabilityInfo}>
+                <Text style={styles.availabilityValue}>
+                  {workers.filter(w => w.isAvailable).length}
+                </Text>
+                <Text style={styles.availabilityLabel}>Available</Text>
+              </View>
+            </View>
+            <View style={styles.availabilityItem}>
+              <View style={styles.availabilityIconContainer}>
+                <Ionicons name="close-circle" size={24} color={COLORS.warning} />
+              </View>
+              <View style={styles.availabilityInfo}>
+                <Text style={styles.availabilityValue}>
+                  {workers.filter(w => !w.isAvailable).length}
+                </Text>
+                <Text style={styles.availabilityLabel}>Unavailable</Text>
+              </View>
+            </View>
+            <View style={styles.availabilityItem}>
+              <View style={styles.availabilityIconContainer}>
+                <Ionicons name="shield-checkmark" size={24} color={COLORS.primary} />
+              </View>
+              <View style={styles.availabilityInfo}>
+                <Text style={styles.availabilityValue}>
+                  {workers.filter(w => w.isVerified).length}
+                </Text>
+                <Text style={styles.availabilityLabel}>Verified</Text>
+              </View>
+            </View>
+          </View>
+        </Card>
       </View>
 
       {/* Recent Activities */}
@@ -391,6 +466,70 @@ const styles = StyleSheet.create({
     fontSize: FONTS.body4.fontSize,
     color: COLORS.textSecondary,
     marginBottom: SIZES.base / 2,
+  },
+  actionCardsContainer: {
+    padding: SIZES.medium,
+  },
+  actionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SIZES.medium,
+    marginBottom: SIZES.medium,
+  },
+  actionIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: `${COLORS.warning}10`,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SIZES.medium,
+  },
+  actionContent: {
+    flex: 1,
+  },
+  actionTitle: {
+    fontSize: FONTS.h4.fontSize,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+    marginBottom: SIZES.base / 2,
+  },
+  actionSubtitle: {
+    fontSize: FONTS.body4.fontSize,
+    color: COLORS.textSecondary,
+  },
+  availabilityCard: {
+    marginBottom: SIZES.medium,
+  },
+  availabilityStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  availabilityItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  availabilityIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: `${COLORS.primary}10`,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SIZES.base,
+  },
+  availabilityInfo: {
+    alignItems: 'center',
+  },
+  availabilityValue: {
+    fontSize: FONTS.h3.fontSize,
+    fontWeight: 'bold',
+    color: COLORS.textPrimary,
+  },
+  availabilityLabel: {
+    fontSize: FONTS.body4.fontSize,
+    color: COLORS.textSecondary,
+    marginTop: SIZES.base / 2,
   },
 });
 export default AdminDashboardScreen;

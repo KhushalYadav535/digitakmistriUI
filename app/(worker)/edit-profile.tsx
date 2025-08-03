@@ -7,8 +7,10 @@ import Input from '../../components/Input';
 import { COLORS, FONTS, SHADOWS, SIZES } from '../constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../constants/config';
+import { useLanguage } from '../context/LanguageContext';
 
 const WorkerEditProfileScreen = () => {
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -24,7 +26,7 @@ const WorkerEditProfileScreen = () => {
           method: 'GET',
           headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (!res.ok) throw new Error('Failed to fetch profile');
+        if (!res.ok) throw new Error(t('worker.failed_to_fetch_profile'));
         const data = await res.json();
         setFormData({
           name: data.name || '',
@@ -48,11 +50,11 @@ const WorkerEditProfileScreen = () => {
         },
         body: JSON.stringify(formData)
       });
-      if (!res.ok) throw new Error('Failed to update profile');
-      const data = await res.json();
-      await AsyncStorage.setItem('worker', JSON.stringify(data));
-      router.back();
-    } catch (e) { alert('Failed to update profile'); }
+              if (!res.ok) throw new Error(t('worker.failed_to_update_profile'));
+        const data = await res.json();
+        await AsyncStorage.setItem('worker', JSON.stringify(data));
+        router.back();
+      } catch (e) { alert(t('worker.failed_to_update_profile')); }
   };
 
   return (
@@ -64,39 +66,39 @@ const WorkerEditProfileScreen = () => {
         >
           <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Profile</Text>
+        <Text style={styles.headerTitle}>{t('worker.edit_profile')}</Text>
         <View style={styles.placeholder} />
       </View>
 
       <View style={styles.form}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Personal Information</Text>
-          <Input
-            label="Full Name"
-            value={formData.name}
-            onChangeText={(text) => setFormData({ ...formData, name: text })}
-            placeholder="Enter your full name"
-          />
-          <Input
-            label="Phone Number"
-            value={formData.phone}
-            onChangeText={(text) => setFormData({ ...formData, phone: text })}
-            placeholder="Enter your phone number"
-            keyboardType="phone-pad"
-          />
-          <Input
-            label="Email"
-            value={formData.email}
-            onChangeText={(text) => setFormData({ ...formData, email: text })}
-            placeholder="Enter your email"
-            keyboardType="email-address"
-          />
+          <Text style={styles.sectionTitle}>{t('worker.personal_info')}</Text>
+                      <Input
+              label={t('worker.full_name')}
+              value={formData.name}
+              onChangeText={(text) => setFormData({ ...formData, name: text })}
+              placeholder={t('worker.enter_full_name')}
+            />
+            <Input
+              label={t('worker.phone_number')}
+              value={formData.phone}
+              onChangeText={(text) => setFormData({ ...formData, phone: text })}
+              placeholder={t('worker.enter_phone_number')}
+              keyboardType="phone-pad"
+            />
+            <Input
+              label={t('worker.email')}
+              value={formData.email}
+              onChangeText={(text) => setFormData({ ...formData, email: text })}
+              placeholder={t('worker.enter_email')}
+              keyboardType="email-address"
+            />
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Professional Details</Text>
-
-          <Text style={styles.label}>Services Offered</Text>
+                  <Text style={styles.sectionTitle}>{t('worker.professional_details')}</Text>
+        
+        <Text style={styles.label}>{t('worker.services_offered')}</Text>
           <View style={styles.servicesContainer}>
             {['Plumbing', 'Electrical', 'Carpentry', 'Painting', 'Cleaning', 'Repair'].map(
               (service) => (
@@ -129,7 +131,7 @@ const WorkerEditProfileScreen = () => {
         </View>
 
         <Button
-          title="Save Changes"
+                      title={t('worker.save_changes')}
           onPress={handleSave}
           style={styles.saveButton}
         />

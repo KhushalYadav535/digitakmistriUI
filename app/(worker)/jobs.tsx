@@ -10,38 +10,43 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
-import { StyleSheet, StyleProp, ViewStyle, TextStyle } from 'react-native';
+import { StyleSheet, ViewStyle, TextStyle } from 'react-native';
 import Button from '../../components/Button';
 import Card from '../../components/Card';
 import { COLORS, FONTS, SHADOWS, SIZES } from '../../constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../constants/config';
 import axios from 'axios';
+import { useLanguage } from '../context/LanguageContext';
 
 interface Job {
-  _id: string; // Add this line to fix the type error
+  _id: string;
   id: string;
   customer: {
     name: string;
     phone: string;
   };
   service: string;
+  serviceType?: string;
+  serviceTitle?: string;
   address: {
     street: string;
     city: string;
     state: string;
     pincode: string;
   };
-  date: string;
-  time: string;
-  status: 'pending' | 'accepted' | 'in_progress' | 'completed' | 'cancelled' | 'Unknown' | 'Pending' | 'Accepted' | 'In Progress' | 'Completed' | 'Cancelled' | 'Worker Assigned';
+  date?: string;
+  bookingDate?: string;
+  time?: string;
+  bookingTime?: string;
+  status: 'pending' | 'accepted' | 'in_progress' | 'completed' | 'cancelled' | 'Unknown' | 'Pending' | 'Confirmed' | 'Worker Assigned' | 'Accepted' | 'Rejected' | 'In Progress' | 'Completed' | 'Cancelled';
   amount: number;
+  workerPayment?: number;
   phone: string;
 }
 
-type Style = StyleProp<ViewStyle | TextStyle>;
-
 const WorkerJobsScreen = () => {
+  const { t } = useLanguage();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
   const [selectedStatus, setSelectedStatus] = useState<Job['status'] | 'all'>('all');
@@ -51,10 +56,14 @@ const WorkerJobsScreen = () => {
   const [completedBookings, setCompletedBookings] = useState<Job[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const fetchJobs = async () => {
     try {
+      setLoading(true);
+      setError(null);
       const token = await AsyncStorage.getItem('token');
+      
       console.log('Fetching assigned bookings...');
       const response = await axios.get(`${API_URL}/worker/bookings`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -67,9 +76,26 @@ const WorkerJobsScreen = () => {
       });
       console.log('Unassigned bookings response:', unassignedResponse.data);
 
+      // Fetch completed bookings separately
+      console.log('Fetching completed bookings...');
+      const completedResponse = await axios.get(`${API_URL}/worker/completed-bookings`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      console.log('Completed bookings response:', completedResponse.data);
+      
+      console.log('=== DEBUG: Job Status Analysis ===');
+      console.log('Assigned bookings statuses:', response.data.map((job: any) => job.status));
+      console.log('Unassigned bookings statuses:', unassignedResponse.data.map((job: any) => job.status));
+      console.log('Completed bookings statuses:', completedResponse.data.bookings?.map((job: any) => job.status) || []);
+      
       setAssignedBookings(response.data);
       setUnassignedBookings(unassignedResponse.data);
-      setJobs([...response.data, ...unassignedResponse.data]);
+      setCompletedBookings(completedResponse.data.bookings || []);
+      
+      // Combine all jobs
+      const allJobs = [...response.data, ...unassignedResponse.data, ...(completedResponse.data.bookings || [])];
+      setJobs(allJobs);
+      
     } catch (err: any) {
       console.error('Error fetching jobs:', err.response?.data || err.message);
       if (err instanceof Error) {
@@ -79,6 +105,8 @@ const WorkerJobsScreen = () => {
         });
       }
       setError('Failed to fetch jobs: ' + (err.response?.status || err.message));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -95,71 +123,59 @@ const WorkerJobsScreen = () => {
     fetchJobs();
   }, []);
 
-  // Statuses as per backend
+  // Statuses as per backend Booking model
   const STATUS_OPTIONS = [
-    { key: 'all', label: 'All' },
-    { key: 'Pending', label: 'Pending' },
-    { key: 'Worker Assigned', label: 'Assigned' },
-    { key: 'Accepted', label: 'Accepted' },
-    { key: 'In Progress', label: 'In Progress' },
-    { key: 'Completed', label: 'Completed' },
-    { key: 'Cancelled', label: 'Cancelled' },
+    { key: 'all', label: t('worker.all_jobs') },
+    { key: 'Pending', label: t('worker.pending') },
+    { key: 'Confirmed', label: t('worker.confirmed') },
+    { key: 'Worker Assigned', label: t('worker.worker_assigned') },
+    { key: 'Accepted', label: t('worker.accepted') },
+    { key: 'Rejected', label: t('worker.rejected') },
+    { key: 'In Progress', label: t('worker.in_progress') },
+    { key: 'Completed', label: t('worker.completed') },
+    { key: 'Cancelled', label: t('worker.cancelled') },
   ];
 
   // Update filter logic to match backend status
   useEffect(() => {
-    console.log('All jobs:', jobs.map(j => j.status));
+    console.log('=== FILTER DEBUG ===');
+    console.log('Selected status:', selectedStatus);
+    console.log('Total jobs count:', jobs.length);
+    console.log('All jobs with statuses:', jobs.map(j => ({ 
+      id: j._id, 
+      status: j.status,
+      statusType: typeof j.status,
+      serviceTitle: j.serviceTitle || j.serviceType || j.service
+    })));
+    
     if (selectedStatus === 'all') {
+      console.log('Showing all jobs');
       setFilteredJobs(jobs);
     } else {
-      setFilteredJobs(jobs.filter(job => {
-        // Normalize both status and selectedStatus for robust matching
-        const jobStatus = (job.status || '').toLowerCase().replace(/\s+/g, ' ').trim();
-        const selected = (selectedStatus || '').toLowerCase().replace(/\s+/g, ' ').trim();
-        return jobStatus === selected;
-      }));
+      const filtered = jobs.filter(job => {
+        const jobStatus = (job.status || '').toString().trim();
+        const selectedStatusTrimmed = selectedStatus.toString().trim();
+        const matches = jobStatus === selectedStatusTrimmed;
+        console.log(`Job ${job._id}: status="${jobStatus}" (${typeof jobStatus}) vs selected="${selectedStatusTrimmed}" (${typeof selectedStatusTrimmed}) -> ${matches}`);
+        return matches;
+      });
+      console.log('Filtered jobs count:', filtered.length);
+      console.log('Filtered jobs:', filtered.map(j => ({ id: j._id, status: j.status })));
+      setFilteredJobs(filtered);
     }
   }, [selectedStatus, jobs]);
 
+
+
   const handleJobPress = (jobId: string) => {
     if (!jobId) {
-      alert('Invalid job. Cannot show details.');
+      alert(t('worker.invalid_job_message'));
       return;
     }
     router.push({
       pathname: "/(worker)/job-details/[id]" as any,
       params: { id: jobId }
     });
-  };
-
-  const fetchAssignedBookings = async () => {
-    try {
-      const token = await AsyncStorage.getItem('token');
-      console.log('Fetching assigned bookings...');
-      const response = await axios.get(`${API_URL}/worker/bookings`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      console.log('Assigned bookings response:', response.data);
-      setAssignedBookings(response.data);
-    } catch (err: any) {
-      console.error('Assigned bookings fetch failed:', err.response?.data || err.message);
-      setError('Failed to fetch assigned bookings: ' + (err.response?.status || err.message));
-    }
-  };
-
-  const fetchUnassignedBookings = async () => {
-    try {
-      const token = await AsyncStorage.getItem('token');
-      console.log('Fetching unassigned bookings...');
-      const response = await axios.get(`${API_URL}/worker/unassigned-bookings`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      console.log('Unassigned bookings response:', response.data);
-      setUnassignedBookings(response.data);
-    } catch (err: any) {
-      console.error('Unassigned bookings fetch failed:', err.response?.data || err.message);
-      setError('Failed to fetch unassigned bookings: ' + (err.response?.status || err.message));
-    }
   };
 
   const handleAccept = async (jobId: string) => {
@@ -170,11 +186,11 @@ const WorkerJobsScreen = () => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       console.log('Accept job response:', response.data);
-      Alert.alert('Success', 'Job accepted successfully');
+      Alert.alert(t('success'), t('worker.job_accepted_successfully'));
       fetchJobs();
     } catch (err: any) {
       console.error('Accept job error:', err.response?.data || err.message);
-      Alert.alert('Error', err.response?.data?.message || 'Failed to accept job');
+      Alert.alert(t('error'), err.response?.data?.message || t('worker.failed_to_accept_job'));
     }
   };
 
@@ -186,11 +202,11 @@ const WorkerJobsScreen = () => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       console.log('Reject job response:', response.data);
-      Alert.alert('Success', 'Job rejected successfully');
+      Alert.alert(t('success'), t('worker.job_rejected_successfully'));
       fetchJobs();
     } catch (err: any) {
       console.error('Reject job error:', err.response?.data || err.message);
-      Alert.alert('Error', err.response?.data?.message || 'Failed to reject job');
+      Alert.alert(t('error'), err.response?.data?.message || t('worker.failed_to_reject_job'));
     }
   };
 
@@ -202,25 +218,31 @@ const WorkerJobsScreen = () => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       console.log('Start job response:', response.data);
-      Alert.alert('Success', 'Job started successfully');
+      Alert.alert(t('success'), t('worker.job_started_successfully'));
       fetchJobs();
     } catch (err: any) {
       console.error('Start job error:', err.response?.data || err.message);
-      Alert.alert('Error', err.response?.data?.message || 'Failed to start job');
+      Alert.alert(t('error'), err.response?.data?.message || t('worker.failed_to_start_job'));
     }
   };
 
   const getStatusColor = (status: Job['status']) => {
     switch (status) {
-      case 'pending':
+      case 'Pending':
         return COLORS.warning;
-      case 'accepted':
-        return COLORS.success;
-      case 'in_progress':
+      case 'Confirmed':
+        return COLORS.info;
+      case 'Worker Assigned':
         return COLORS.primary;
-      case 'completed':
+      case 'Accepted':
         return COLORS.success;
-      case 'cancelled':
+      case 'Rejected':
+        return COLORS.error;
+      case 'In Progress':
+        return COLORS.warning;
+      case 'Completed':
+        return COLORS.success;
+      case 'Cancelled':
         return COLORS.error;
       default:
         return COLORS.textSecondary;
@@ -229,6 +251,7 @@ const WorkerJobsScreen = () => {
 
   const renderFilterDropdown = () => {
     if (!showFilterDropdown) return null;
+    console.log('Rendering dropdown with options:', STATUS_OPTIONS.map(opt => opt.key));
     return (
       <View style={styles.dropdownOverlay}>
         <View style={styles.dropdownMenu}>
@@ -240,9 +263,13 @@ const WorkerJobsScreen = () => {
                 selectedStatus === option.key && styles.selectedDropdownItem
               ]}
               onPress={() => {
+                console.log('Dropdown selected:', option.key, 'label:', option.label);
+                console.log('Setting selectedStatus to:', option.key);
                 setSelectedStatus(option.key as any);
+                console.log('Dropdown will close now');
                 setShowFilterDropdown(false);
               }}
+              activeOpacity={0.7}
             >
               <Text style={[
                 styles.dropdownItemText,
@@ -251,23 +278,32 @@ const WorkerJobsScreen = () => {
             </TouchableOpacity>
           ))}
         </View>
-        <TouchableOpacity style={styles.dropdownBackdrop} onPress={() => setShowFilterDropdown(false)} />
+        <TouchableOpacity 
+          style={styles.dropdownBackdrop} 
+          onPress={() => {
+            console.log('Backdrop pressed, closing dropdown');
+            setShowFilterDropdown(false);
+          }} 
+        />
       </View>
     );
   };
 
   const renderJobCard = (job: Job) => {
     const address = job.address || {};
-    const normalizedStatus = job.status.toLowerCase().replace('_', ' ');
+    const serviceTitle = job.serviceTitle || job.serviceType || job.service || 'Unknown Service';
+    const bookingDate = job.bookingDate || job.date;
+    const bookingTime = job.bookingTime || job.time;
+    
     return (
       <Card key={job._id} variant="elevated" style={Array.isArray(styles.jobCard) ? styles.jobCard : [styles.jobCard]}>
         <View style={styles.jobHeader}>
           <View style={styles.jobInfo}>
-            <Text style={styles.serviceTitle}>{job.service || job.serviceTitle}</Text>
-            <Text style={styles.customerName}>{job.customer?.name || 'Customer'}</Text>
+            <Text style={styles.serviceTitle}>{serviceTitle}</Text>
+            <Text style={styles.customerName}>{job.customer?.name || t('worker.customer')}</Text>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: getStatusColor(job.status) }]}>
-            <Text style={styles.statusText}>{job.status.charAt(0).toUpperCase() + job.status.slice(1).replace('_', ' ')}</Text>
+            <Text style={styles.statusText}>{job.status}</Text>
           </View>
         </View>
 
@@ -275,48 +311,48 @@ const WorkerJobsScreen = () => {
           <View style={styles.detailRow}>
             <Ionicons name="location-outline" size={20} color={COLORS.textSecondary} />
             <Text style={styles.detailText}>
-              {address.street ? `${address.street}, ${address.city}, ${address.state} - ${address.pincode}` : 'Address not available'}
+              {address.street ? `${address.street}, ${address.city}, ${address.state} - ${address.pincode}` : t('worker.address_not_available')}
             </Text>
           </View>
           <View style={styles.detailRow}>
             <Ionicons name="calendar-outline" size={20} color={COLORS.textSecondary} />
             <Text style={styles.detailText}>
-              {job.date ? new Date(job.date).toLocaleDateString() : 'Date not available'} at {job.time || 'Time not available'}
+              {bookingDate ? new Date(bookingDate).toLocaleDateString() : t('worker.date_not_available')} at {bookingTime || t('worker.time_not_available')}
             </Text>
           </View>
           <View style={styles.detailRow}>
             <Ionicons name="cash-outline" size={20} color={COLORS.textSecondary} />
-            <Text style={styles.detailText}>₹{job.amount || 'N/A'}</Text>
+            <Text style={styles.detailText}>₹{job.workerPayment || job.amount || 'N/A'}</Text>
           </View>
         </View>
 
         <View style={styles.jobActions}>
-          {normalizedStatus === 'pending' && (
+          {job.status === 'Pending' && (
             <>
               <Button
-                title="Accept"
+                title={t('worker.accept')}
                 onPress={() => handleAccept(job._id)}
                 variant="primary"
                 style={styles.actionButton}
               />
               <Button
-                title="Reject"
+                title={t('worker.reject')}
                 onPress={() => handleReject(job._id)}
                 variant="outline"
                 style={styles.actionButton}
               />
             </>
           )}
-          {normalizedStatus === 'accepted' && (
+          {job.status === 'Accepted' && (
             <Button
-              title="Start Job"
+              title={t('worker.start_job_button')}
               onPress={() => handleStart(job._id)}
               variant="primary"
               style={styles.actionButton}
             />
           )}
           <Button
-            title="View Details"
+            title={t('worker.view_details_button')}
             onPress={() => handleJobPress(job._id)}
             variant="outline"
             style={styles.actionButton}
@@ -326,14 +362,49 @@ const WorkerJobsScreen = () => {
     );
   };
 
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.headerModern}>
+          <Text style={styles.title}>{t('worker.my_jobs')}</Text>
+        </View>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>{t('worker.loading_jobs')}</Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.headerModern}>
-        <Text style={styles.title}>My Jobs</Text>
+        <Text style={styles.title}>{t('worker.my_jobs')}</Text>
         <TouchableOpacity onPress={() => setShowFilterDropdown((v: boolean) => !v)}>
           <Ionicons name="filter-outline" size={24} color={COLORS.primary} style={{ marginLeft: 8 }} />
         </TouchableOpacity>
       </View>
+      
+      {/* Filter Status Display */}
+      <View style={styles.filterStatusContainer}>
+        <Text style={styles.filterStatusText}>
+          {t('filter')}: {STATUS_OPTIONS.find(opt => opt.key === selectedStatus)?.label || t('worker.all_jobs')}
+        </Text>
+        <Text style={styles.filterCountText}>
+          {filteredJobs.length} {t('of')} {jobs.length} {t('worker.jobs')}
+        </Text>
+      </View>
+      
+
+      
+      {error && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={fetchJobs}>
+            <Text style={styles.retryButtonText}>{t('retry')}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      
       {renderFilterDropdown()}
       <ScrollView 
         showsVerticalScrollIndicator={false}
@@ -351,8 +422,13 @@ const WorkerJobsScreen = () => {
             {renderJobCard(job)}
           </View>
         ))}
-        {filteredJobs.length === 0 && (
-          <Text style={styles.noJobs}>No jobs found</Text>
+        {filteredJobs.length === 0 && !loading && (
+          <View style={styles.noJobsContainer}>
+            <Text style={styles.noJobs}>{t('worker.no_jobs_found')}</Text>
+            <Text style={styles.noJobsSubtext}>
+              {selectedStatus === 'all' ? t('worker.no_jobs_yet') : `${t('worker.no_jobs_with_status')} "${STATUS_OPTIONS.find(opt => opt.key === selectedStatus)?.label}"`}
+            </Text>
+          </View>
         )}
       </ScrollView>
     </View>
@@ -383,9 +459,9 @@ const styles = StyleSheet.create({
     paddingVertical: SIZES.base,
   },
   filterOption: {
-    paddingHorizontal: SIZES.padding,
+    paddingHorizontal: SIZES.medium,
     paddingVertical: SIZES.base,
-    borderRadius: SIZES.radius,
+    borderRadius: SIZES.base,
     marginRight: SIZES.base,
     backgroundColor: COLORS.lightGray,
   },
@@ -401,10 +477,10 @@ const styles = StyleSheet.create({
   },
   jobCard: {
     margin: SIZES.base,
-    padding: SIZES.padding,
+    padding: SIZES.medium,
     backgroundColor: COLORS.white,
-    borderRadius: SIZES.radius,
-    shadowColor: COLORS.shadow,
+    borderRadius: SIZES.base,
+    shadowColor: COLORS.black,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -434,7 +510,7 @@ const styles = StyleSheet.create({
   statusBadge: {
     paddingHorizontal: SIZES.base,
     paddingVertical: 4,
-    borderRadius: SIZES.radius,
+    borderRadius: SIZES.base,
   },
   statusText: {
     ...FONTS.body4,
@@ -543,7 +619,7 @@ const styles = StyleSheet.create({
     top: 60,
     right: 16,
     left: 16,
-    zIndex: 10,
+    zIndex: 1000,
     alignItems: 'flex-end',
   },
   dropdownMenu: {
@@ -553,10 +629,15 @@ const styles = StyleSheet.create({
     minWidth: 160,
     ...SHADOWS.medium,
     marginBottom: 8,
+    zIndex: 1001,
+    elevation: 10,
   },
   dropdownItem: {
     paddingVertical: 12,
     paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    backgroundColor: COLORS.white,
   },
   selectedDropdownItem: {
     backgroundColor: COLORS.primary + '15',
@@ -570,8 +651,80 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   dropdownBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.01)',
+    zIndex: 999,
+  },
+  filterStatusContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: SIZES.padding,
+    paddingVertical: SIZES.base,
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  filterStatusText: {
+    ...FONTS.body3,
+    color: COLORS.textPrimary,
+    fontWeight: '600',
+  },
+  filterCountText: {
+    ...FONTS.body4,
+    color: COLORS.textSecondary,
+  },
+  noJobsContainer: {
+    alignItems: 'center',
+    paddingVertical: SIZES.medium * 2,
+  },
+  noJobsSubtext: {
+    ...FONTS.body4,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginTop: SIZES.base,
+  },
+
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SIZES.padding,
+  },
+  loadingText: {
+    fontSize: FONTS.h2.fontSize,
+    fontWeight: FONTS.h2.fontWeight,
+    color: COLORS.textPrimary,
+  },
+  errorContainer: {
+    padding: SIZES.medium,
+    backgroundColor: COLORS.error + '20',
+    borderRadius: SIZES.base,
+    marginHorizontal: SIZES.medium,
+    marginBottom: SIZES.base,
+    alignItems: 'center',
+  },
+  errorText: {
+    fontSize: FONTS.body2.fontSize,
+    fontWeight: FONTS.body2.fontWeight,
+    color: COLORS.error,
+    textAlign: 'center',
+    marginBottom: SIZES.base,
+  },
+  retryButton: {
+    paddingVertical: SIZES.base,
+    paddingHorizontal: SIZES.large,
+    backgroundColor: COLORS.primary,
+    borderRadius: SIZES.base,
+  },
+  retryButtonText: {
+    fontSize: FONTS.body2.fontSize,
+    fontWeight: FONTS.body2.fontWeight,
+    color: COLORS.white,
   },
 });
 

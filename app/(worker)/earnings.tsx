@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Card from '../../components/Card';
 import { SHADOWS } from '../../constants/theme';
+import { useLanguage } from '../context/LanguageContext';
 
 interface Earning {
   date: string;
@@ -15,6 +16,7 @@ interface Earning {
 }
 
 const EarningsScreen = () => {
+  const { t } = useLanguage();
   const [earnings, setEarnings] = React.useState<Earning[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -48,7 +50,7 @@ const EarningsScreen = () => {
         setEarnings(earningsArray);
       } catch (err: any) {
         console.error('Earnings fetch error:', err.response?.data || err.message);
-        setError('Failed to fetch earnings: ' + (err.response?.data?.message || err.message));
+        setError(t('worker.failed_to_fetch_earnings') + ': ' + (err.response?.data?.message || err.message));
         setEarnings([]);
       } finally {
         setLoading(false);
@@ -91,11 +93,11 @@ const EarningsScreen = () => {
       >
         <View style={styles.headerContent}>
           <Ionicons name="wallet-outline" size={32} color={COLORS.white} style={{ marginRight: 12 }} />
-          <Text style={styles.titleModern}>Earnings History</Text>
+          <Text style={styles.titleModern}>{t('worker.earnings_history')}</Text>
         </View>
       </LinearGradient>
       {earnings.length === 0 ? (
-        <Text style={styles.noEarningsModern}>No earnings recorded yet</Text>
+        <Text style={styles.noEarningsModern}>{t('worker.no_earnings_recorded')}</Text>
       ) : (
         <View style={styles.earningsList}>
           {earnings.map((item, idx) => (

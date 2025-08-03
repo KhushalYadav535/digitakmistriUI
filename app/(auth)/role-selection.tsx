@@ -9,7 +9,7 @@ import {
     View,
 } from 'react-native';
 import { COLORS, FONTS, SHADOWS, SIZES } from '../constants/theme';
-import { useTranslation } from 'react-i18next';
+import { useLanguage } from '../context/LanguageContext';
 
 const roles = [
   {
@@ -26,7 +26,7 @@ const roles = [
   },
   {
     id: 'worker',
-    title: 'worker',
+    title: 'worker_role',
     description: 'role_worker_desc',
     icon: 'construct-outline',
   },
@@ -34,7 +34,7 @@ const roles = [
 
 const RoleSelectionScreen = () => {
   const [selectedRole, setSelectedRole] = useState('');
-  const { t } = useTranslation();
+  const { t } = useLanguage();
 
   const handleContinue = () => {
     if (selectedRole) {

@@ -21,38 +21,7 @@ import { COLORS, FONTS, SHADOWS, SIZES } from '../../constants/theme';
 import { apiClient } from '../utils/api';
 import { useApi } from '../hooks/useApi';
 import { API_URL } from '../constants/config';
-
-// Translations
-const translations = {
-  en: {
-    greeting: 'Hello',
-    language: 'HI',
-    earnings: {
-      daily: 'Today',
-      weekly: 'This Week',
-      monthly: 'This Month'
-    },
-    jobsCompleted: 'Jobs Completed',
-    totalBookings: 'Total Bookings',
-    available: 'Available',
-    support: 'Support',
-    jobRequests: 'Job Requests'
-  },
-  hi: {
-    greeting: 'नमस्ते',
-    language: 'EN',
-    earnings: {
-      daily: 'आज',
-      weekly: 'इस हफ्ते',
-      monthly: 'इस महीने'
-    },
-    jobsCompleted: 'पूरे किए गए काम',
-    totalBookings: 'कुल बुकिंग',
-    available: 'उपलब्ध',
-    support: 'सहायता',
-    jobRequests: 'काम के अनुरोध'
-  }
-};
+import { useLanguage } from '../context/LanguageContext';
 
 interface JobRequest {
   _id: string;
@@ -76,6 +45,15 @@ interface WorkerStats {
   totalEarnings: number;
   completedBookings: number;
   totalBookings: number;
+  totalRatings?: number;
+  averageRating?: number;
+  ratingBreakdown?: {
+    1: number;
+    2: number;
+    3: number;
+    4: number;
+    5: number;
+  };
 }
 
 interface Worker {
@@ -93,6 +71,15 @@ interface Worker {
     completedBookings: number;
     totalEarnings: number;
     earnings: Earnings[];
+    totalRatings?: number;
+    averageRating?: number;
+    ratingBreakdown?: {
+      1: number;
+      2: number;
+      3: number;
+      4: number;
+      5: number;
+    };
   };
 }
 
@@ -102,16 +89,15 @@ type ButtonVariant = 'primary' | 'secondary' | 'success' | 'danger';
 
 
 const WorkerDashboardScreen = () => {
+  const { t, language, changeLanguage } = useLanguage();
   const [available, setAvailable] = useState(false);
-  const [language, setLanguage] = useState<'en' | 'hi'>('en');
   const [earningsPeriod, setEarningsPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
   const [worker, setWorker] = useState<Worker | null>(null);
   const [assignedBookings, setAssignedBookings] = useState<any[]>([]);
   const [completedBookings, setCompletedBookings] = useState<any[]>([]);
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const t = translations[language];
 
   const { execute: fetchDashboard, loading, error } = useApi(async () => {
     try {
@@ -191,23 +177,23 @@ const WorkerDashboardScreen = () => {
           await apiClient.post(`/worker/jobs/${jobId}/start`, {}, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
-          Alert.alert('Success', 'Job started successfully');
+          Alert.alert(t('success'), t('worker.job_started_successfully'));
           break;
         case 'complete':
           await apiClient.post(`/worker/jobs/${jobId}/complete`, {}, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
-          Alert.alert('Success', 'Job completed successfully');
+          Alert.alert(t('success'), t('worker.job_completed_successfully'));
           break;
         case 'cancel':
           await apiClient.post(`/worker/jobs/${jobId}/cancel`, {}, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
-          Alert.alert('Success', 'Job cancelled successfully');
+          Alert.alert(t('success'), t('worker.job_cancelled_successfully'));
           break;
         case 'view':
           if (!jobId) {
-            Alert.alert('Error', 'Invalid job ID');
+            Alert.alert(t('error'), t('worker.invalid_job_id'));
             return;
           }
           router.push({
@@ -222,7 +208,11 @@ const WorkerDashboardScreen = () => {
       
     } catch (err: any) {
       console.error('Job action error:', err);
-      Alert.alert('Error', err.message || `Failed to ${action} job`);
+      const errorMessage = action === 'start' ? t('worker.failed_to_start_job') : 
+                          action === 'complete' ? t('worker.failed_to_complete_job') : 
+                          action === 'cancel' ? t('worker.failed_to_cancel_job') : 
+                          err.message || `Failed to ${action} job`;
+      Alert.alert(t('error'), errorMessage);
     }
   };
 
@@ -264,17 +254,45 @@ const WorkerDashboardScreen = () => {
   };
 
   const toggleAvailability = async () => {
+    if (availabilityLoading) return; // Prevent multiple rapid clicks
+    
     try {
+      setAvailabilityLoading(true);
       const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        Alert.alert(t('error'), t('worker.authentication_token_not_found'));
+        return;
+      }
+
       const newStatus = !available;
-      await apiClient.put('/worker/availability', 
-        { isAvailable: newStatus },
-        { headers: { 'Authorization': `Bearer ${token}` } }
-      );
+      console.log('Toggling availability to:', newStatus);
+      
+      const response = await fetch(`${API_URL}/worker/availability`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ isAvailable: newStatus }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('Availability update failed:', response.status, errorData);
+        throw new Error(`HTTP ${response.status}: ${errorData}`);
+      }
+
+      const result = await response.json();
+      console.log('Availability updated successfully:', result);
       setAvailable(newStatus);
+      
+      // Show success feedback
+      Alert.alert(t('success'), newStatus ? t('worker.availability_updated') : t('worker.availability_updated_unavailable'));
     } catch (err: any) {
       console.error('Failed to update availability:', err);
-      Alert.alert('Error', 'Failed to update availability status');
+      Alert.alert(t('error'), `${t('worker.failed_to_update_availability')}: ${err.message}`);
+    } finally {
+      setAvailabilityLoading(false);
     }
   };
 
@@ -301,41 +319,41 @@ const WorkerDashboardScreen = () => {
     );
   }
 
-  if (!worker) return <View style={{flex:1, justifyContent:'center', alignItems:'center'}}><Text>No worker data found.</Text></View>;
+  if (!worker) return <View style={{flex:1, justifyContent:'center', alignItems:'center'}}><Text>{t('worker.no_worker_data')}</Text></View>;
 
   const renderJobActions = (job: any) => (
     <View style={styles.actionButtons}>
       {job.status === 'Worker Assigned' && (
         <Button
-          title="Start"
+          title={t('worker.start')}
           onPress={() => handleJobAction(job._id, 'start')}
           variant="success"
         />
       )}
       {job.status === 'In Progress' && (
         <Button
-          title="Complete"
+          title={t('worker.complete')}
           onPress={() => handleJobAction(job._id, 'complete')}
           variant="success"
         />
       )}
       {['Worker Assigned', 'Accepted', 'In Progress'].includes(job.status) && (
         <Button
-          title="Cancel"
+          title={t('worker.cancel')}
           onPress={() => handleJobAction(job._id, 'cancel')}
           variant="danger"
         />
       )}
       {job.status !== 'Completed' && (
         <Button
-          title="View Details"
+          title={t('worker.view_details')}
           onPress={() => handleJobAction(job._id, 'view')}
           variant="primary"
         />
       )}
       {job.status === 'Completed' && (
         <Button
-          title="View Details"
+          title={t('worker.view_details')}
           onPress={() => handleJobAction(job._id, 'view')}
           variant="secondary"
         />
@@ -351,13 +369,13 @@ const WorkerDashboardScreen = () => {
       if (address && typeof address === 'object') {
         return `${address.street}, ${address.city}, ${address.state} - ${address.pincode}`;
       }
-      return 'Address not available';
+      return t('worker.address_not_available');
     };
 
     return (
       <Card key={job._id} style={styles.jobCard}>
         <View style={styles.jobHeader}>
-          <Text style={styles.jobTitle}>{job.serviceTitle || job.serviceType || job.service || 'Unknown Service'}</Text>
+          <Text style={styles.jobTitle}>{job.serviceTitle || job.serviceType || job.service || t('worker.unknown_service')}</Text>
           <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(job.status)}20` }]}>
             <Text style={[styles.statusText, { color: getStatusColor(job.status) }]}>
               {job.status}
@@ -366,12 +384,12 @@ const WorkerDashboardScreen = () => {
         </View>
 
         <View style={styles.jobDetails}>
-          <Text style={styles.customerName}>
-            Customer: {job.customer?.name || 'N/A'}
-          </Text>
-          <Text style={styles.jobAddress}>
-            Address: {formatAddress(job.address)}
-          </Text>
+                  <Text style={styles.customerName}>
+          {t('worker.customer_label')}: {job.customer?.name || 'N/A'}
+        </Text>
+        <Text style={styles.jobAddress}>
+          {t('worker.address_label')}: {formatAddress(job.address)}
+        </Text>
           <Text style={styles.jobDateTime}>
             {new Date(job.bookingDate || job.createdAt).toLocaleDateString()} at {job.bookingTime || 'N/A'}
           </Text>
@@ -389,7 +407,7 @@ const WorkerDashboardScreen = () => {
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={{ marginTop: SIZES.medium, color: COLORS.textSecondary }}>
-          Loading dashboard...
+          {t('worker.loading_dashboard')}
         </Text>
       </View>
     );
@@ -430,15 +448,15 @@ const WorkerDashboardScreen = () => {
       >
         <View style={styles.headerContent}>
           <View>
-            <Text style={styles.greeting}>{t.greeting}</Text>
-            <Text style={styles.name}>{worker?.name || 'Worker'}</Text>
+            <Text style={styles.greeting}>{t('hello')}</Text>
+            <Text style={styles.name}>{worker?.name || t('worker_role')}</Text>
           </View>
           <View style={styles.headerButtons}>
             <TouchableOpacity
               style={styles.languageButton}
-              onPress={() => setLanguage(language === 'en' ? 'hi' : 'en')}
+              onPress={() => changeLanguage(language === 'en' ? 'hi' : 'en')}
             >
-              <Text style={styles.languageText}>{t.language}</Text>
+              <Text style={styles.languageText}>{language === 'en' ? 'HI' : 'EN'}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.profileButton}
@@ -464,7 +482,7 @@ const WorkerDashboardScreen = () => {
                   style={styles.statCardGradient}
                 >
                   <Text style={styles.statValue}>{`₹${worker?.stats?.totalEarnings || 0}`}</Text>
-                  <Text style={styles.statLabel}>{language === 'en' ? 'Total Earnings' : 'कुल कमाई'}</Text>
+                  <Text style={styles.statLabel}>{t('worker.total_earnings')}</Text>
                 </LinearGradient>
               </Card>
             </TouchableOpacity>
@@ -475,7 +493,7 @@ const WorkerDashboardScreen = () => {
                 style={styles.statCardGradient}
               >
                 <Text style={styles.statValue}>{worker?.stats?.completedBookings || 0}</Text>
-                <Text style={styles.statLabel}>{t.jobsCompleted}</Text>
+                <Text style={styles.statLabel}>{t('worker.jobs_completed')}</Text>
               </LinearGradient>
             </Card>
           </View>
@@ -487,14 +505,15 @@ const WorkerDashboardScreen = () => {
                 style={styles.statCardGradient}
               >
                 <Text style={styles.statValue}>{worker?.stats?.totalBookings || 0}</Text>
-                <Text style={styles.statLabel}>{t.totalBookings}</Text>
+                <Text style={styles.statLabel}>{t('worker.total_bookings')}</Text>
               </LinearGradient>
             </Card>
 
             <TouchableOpacity 
-              style={styles.statCard} 
+              style={[styles.statCard, availabilityLoading && styles.disabledCard]} 
               activeOpacity={0.8}
               onPress={toggleAvailability}
+              disabled={availabilityLoading}
             >
               <Card variant="elevated" style={{flex: 1, overflow: 'hidden'}}>
                 <LinearGradient
@@ -502,8 +521,12 @@ const WorkerDashboardScreen = () => {
                           available ? COLORS.success + '20' : COLORS.error + '20']}
                   style={styles.statCardGradient}
                 >
-                  <Text style={styles.statValue}>{available ? 'Yes' : 'No'}</Text>
-                  <Text style={styles.statLabel}>{t.available}</Text>
+                  {availabilityLoading ? (
+                    <ActivityIndicator size="small" color={available ? COLORS.success : COLORS.error} />
+                  ) : (
+                    <Text style={styles.statValue}>{available ? t('yes') : t('no')}</Text>
+                  )}
+                  <Text style={styles.statLabel}>{t('worker.available')}</Text>
                 </LinearGradient>
               </Card>
             </TouchableOpacity>
@@ -523,28 +546,86 @@ const WorkerDashboardScreen = () => {
           </View>
         )}
 
+        {/* Ratings Section */}
+        {worker?.stats?.totalRatings && worker.stats.totalRatings > 0 && (
+          <View style={styles.ratingsSection}>
+            <View style={styles.ratingsHeader}>
+              <Text style={styles.sectionTitle}>
+                {t('worker.your_ratings')}
+              </Text>
+              <TouchableOpacity
+                style={styles.viewAllButton}
+                onPress={() => router.push('/(worker)/ratings' as any)}
+              >
+                <Text style={styles.viewAllText}>{t('worker.view_all')}</Text>
+                <Ionicons name="arrow-forward" size={16} color={COLORS.primary} />
+              </TouchableOpacity>
+            </View>
+            <Card variant="elevated" style={styles.ratingCard}>
+              <View style={styles.ratingHeader}>
+                <View style={styles.ratingInfo}>
+                  <Text style={styles.ratingValue}>
+                    {worker.stats.averageRating?.toFixed(1) || '0.0'}
+                  </Text>
+                  <View style={styles.starsContainer}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Ionicons
+                        key={star}
+                        name={star <= Math.round(worker.stats.averageRating || 0) ? 'star' : 'star-outline'}
+                        size={20}
+                        color={COLORS.warning}
+                      />
+                    ))}
+                  </View>
+                  <Text style={styles.ratingCount}>
+                    {worker.stats.totalRatings} {t('worker.ratings')}
+                  </Text>
+                </View>
+                <View style={styles.ratingBreakdown}>
+                  {[5, 4, 3, 2, 1].map((rating) => (
+                    <View key={rating} style={styles.ratingBar}>
+                      <Text style={styles.ratingLabel}>{rating}★</Text>
+                      <View style={styles.ratingBarContainer}>
+                        <View 
+                          style={[
+                            styles.ratingBarFill, 
+                            { 
+                              width: `${(worker.stats.ratingBreakdown?.[rating as keyof typeof worker.stats.ratingBreakdown] || 0) / (worker.stats.totalRatings || 1) * 100}%` 
+                            }
+                          ]} 
+                        />
+                      </View>
+                      <Text style={styles.ratingCount}>{worker.stats.ratingBreakdown?.[rating as keyof typeof worker.stats.ratingBreakdown] || 0}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </Card>
+          </View>
+        )}
+
         <View style={styles.jobRequestsSection}>
           <Text style={styles.sectionTitle}>
-            {language === 'en' ? 'Active Jobs' : 'सक्रिय काम'}
+            {t('worker.active_jobs')}
           </Text>
           {assignedBookings && assignedBookings.length > 0 ? (
             assignedBookings.map(job => renderJobCard(job))
           ) : (
             <Text style={styles.noJobsText}>
-              {language === 'en' ? 'No active jobs at the moment' : 'फिलहाल कोई सक्रिय काम नहीं है'}
+              {t('worker.no_active_jobs')}
             </Text>
           )}
         </View>
 
         <View style={styles.jobRequestsSection}>
           <Text style={styles.sectionTitle}>
-            {language === 'en' ? 'Completed Jobs' : 'पूरे किए गए काम'} ({completedBookings?.length || 0})
+            {t('worker.completed_jobs')} ({completedBookings?.length || 0})
           </Text>
           {completedBookings && completedBookings.length > 0 ? (
             completedBookings.map(job => renderJobCard(job))
           ) : (
             <Text style={styles.noJobsText}>
-              {language === 'en' ? 'No completed jobs yet' : 'अभी तक कोई काम पूरा नहीं हुआ'}
+              {t('worker.no_completed_jobs')}
             </Text>
           )}
         </View>
@@ -562,7 +643,7 @@ const WorkerDashboardScreen = () => {
               end={{ x: 1, y: 1 }}
             />
             <Ionicons name="call" size={24} color={COLORS.white} />
-            <Text style={styles.supportButtonText}>{t.support}</Text>
+            <Text style={styles.supportButtonText}>{t('worker.support')}</Text>
           </TouchableOpacity>
         </View>
       </Animated.View>
@@ -804,6 +885,82 @@ const styles = StyleSheet.create({
   actionButtons: {
     flexDirection: 'row',
     gap: SIZES.base,
+  },
+  ratingsSection: {
+    marginVertical: 10,
+    padding: 15,
+  },
+  ratingCard: {
+    padding: SIZES.medium,
+  },
+  ratingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  ratingInfo: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  ratingValue: {
+    fontSize: FONTS.h2.fontSize,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+    marginBottom: SIZES.base,
+  },
+  starsContainer: {
+    flexDirection: 'row',
+    marginBottom: SIZES.base,
+  },
+  ratingCount: {
+    fontSize: FONTS.body4.fontSize,
+    color: COLORS.textSecondary,
+  },
+  ratingBreakdown: {
+    flex: 1,
+    marginLeft: SIZES.medium,
+  },
+  ratingBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SIZES.base / 2,
+  },
+  ratingLabel: {
+    fontSize: FONTS.body4.fontSize,
+    color: COLORS.textSecondary,
+    width: 30,
+  },
+  ratingBarContainer: {
+    flex: 1,
+    height: 8,
+    backgroundColor: COLORS.lightGray,
+    borderRadius: 4,
+    marginHorizontal: SIZES.base,
+    overflow: 'hidden',
+  },
+  ratingBarFill: {
+    height: '100%',
+    backgroundColor: COLORS.warning,
+    borderRadius: 4,
+  },
+  ratingsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  viewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  viewAllText: {
+    fontSize: FONTS.body4.fontSize,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+  disabledCard: {
+    opacity: 0.6,
   },
 });
 export default WorkerDashboardScreen;

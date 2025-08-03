@@ -7,6 +7,7 @@ import { COLORS, FONTS, SHADOWS, SIZES } from '../../constants/theme';
 import { API_URL } from '../../constants/config';
 import axios from 'axios';
 import { io, Socket } from 'socket.io-client';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface JobDetails {
   id: string;
@@ -25,10 +26,12 @@ interface JobDetails {
   date: string;
   time: string;
   amount: number;
+  workerPayment?: number;
   worker?: any; // Added to fix type error
 }
 
 const JobDetailsScreen = () => {
+  const { t } = useLanguage();
   const { id } = useLocalSearchParams();
   const [job, setJob] = useState<JobDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -87,6 +90,7 @@ const JobDetailsScreen = () => {
     time: data.time || data.bookingTime || '',
     status: typeof data.status === 'string' ? data.status.toLowerCase() : '',
     amount: data.amount || 0,
+    workerPayment: data.workerPayment || data.amount || 0,
     customer: data.customer || { name: '', phone: '' },
     address: data.address || { street: '', city: '', state: '', pincode: '' }
   });
@@ -128,7 +132,7 @@ const JobDetailsScreen = () => {
   const handleAccept = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
-      const response = await axios.put(`${API_URL}/worker/accept-booking/${id}`, {}, {
+      const response = await axios.put(`${API_URL}/worker/bookings/${id}/accept`, {}, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       console.log('Accept job response:', response.data);
@@ -145,7 +149,7 @@ const JobDetailsScreen = () => {
   const handleReject = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
-      await axios.post(`${API_URL}/booking/${id}/reject`, {}, {
+      await axios.put(`${API_URL}/worker/bookings/${id}/reject`, {}, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       Alert.alert('Success', 'Job rejected successfully');
@@ -264,9 +268,9 @@ const JobDetailsScreen = () => {
     }
   };
 
-  if (loading) return <View style={styles.container}><Text>Loading...</Text></View>;
+  if (loading) return <View style={styles.container}><Text>{t('loading')}</Text></View>;
   if (error) return <View style={styles.container}><Text>{error}</Text></View>;
-  if (!job) return <View style={styles.container}><Text>Job not found</Text></View>;
+  if (!job) return <View style={styles.container}><Text>{t('worker.job_not_found')}</Text></View>;
 
   // Normalize status for UI logic
   const normalizedStatus = (job && typeof job.status === 'string' ? job.status : '').toLowerCase().replace(/\s+/g, '_');
@@ -278,57 +282,57 @@ const JobDetailsScreen = () => {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Job Details</Text>
+        <Text style={styles.headerTitle}>{t('worker.job_details')}</Text>
       </View>
 
       <View style={styles.content}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Service Details</Text>
+          <Text style={styles.sectionTitle}>{t('worker.service_details')}</Text>
           <View style={styles.detailRow}>
-            <Text style={styles.label}>Service Type:</Text>
+            <Text style={styles.label}>{t('worker.service_type')}:</Text>
             <Text style={styles.value}>{job.service}</Text>
           </View>
           <View style={styles.detailRow}>
-            <Text style={styles.label}>Status:</Text>
+            <Text style={styles.label}>{t('worker.status')}:</Text>
             <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(job.status)}20` }]}>
               <Text style={[styles.statusText, { color: getStatusColor(job.status) }]}>
-                {job.status ? job.status.charAt(0).toUpperCase() + job.status.slice(1).replace('_', ' ') : 'Unknown'}
+                {job.status ? job.status.charAt(0).toUpperCase() + job.status.slice(1).replace('_', ' ') : t('worker.unknown')}
               </Text>
             </View>
           </View>
           <View style={styles.detailRow}>
-            <Text style={styles.label}>Amount:</Text>
-            <Text style={styles.value}>₹{job.amount}</Text>
+            <Text style={styles.label}>{t('worker.amount')}:</Text>
+            <Text style={styles.value}>₹{job.workerPayment || job.amount}</Text>
           </View>
 
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Customer Details</Text>
+          <Text style={styles.sectionTitle}>{t('worker.customer_details')}</Text>
           <View style={styles.detailRow}>
-            <Text style={styles.label}>Name:</Text>
+            <Text style={styles.label}>{t('worker.name')}:</Text>
             <Text style={styles.value}>{job.customer?.name || '-'}</Text>
           </View>
           <View style={styles.detailRow}>
-            <Text style={styles.label}>Phone:</Text>
+            <Text style={styles.label}>{t('worker.phone')}:</Text>
             <Text style={styles.value}>{job.customer?.phone || '-'}</Text>
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Job Details</Text>
+          <Text style={styles.sectionTitle}>{t('worker.job_details_section')}</Text>
           <View style={styles.detailRow}>
-            <Text style={styles.label}>Address:</Text>
+            <Text style={styles.label}>{t('worker.address')}:</Text>
             <Text style={styles.value}>
               {job.address?.street || ''}, {job.address?.city || ''}, {job.address?.state || ''} - {job.address?.pincode || ''}
             </Text>
           </View>
           <View style={styles.detailRow}>
-            <Text style={styles.label}>Date:</Text>
+            <Text style={styles.label}>{t('worker.date')}:</Text>
             <Text style={styles.value}>{job.date ? new Date(job.date).toLocaleDateString() : ''}</Text>
           </View>
           <View style={styles.detailRow}>
-            <Text style={styles.label}>Time:</Text>
+            <Text style={styles.label}>{t('worker.time')}:</Text>
             <Text style={styles.value}>{job.time}</Text>
           </View>
         </View>

@@ -10,13 +10,13 @@ import { API_URL } from '../constants/config';
 import { socket } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 
-const settings = [
-  {
-    id: '2',
-    title: 'Notifications',
-    icon: 'notifications',
-    route: '/notifications',
-  },
+const settings: Array<{
+  id: string;
+  title: string;
+  icon: string;
+  route: string;
+}> = [
+  // Removed notifications setting as requested
 ];
 
 interface AdminNotification {
@@ -255,6 +255,28 @@ const AdminProfileScreen = () => {
     }
   };
 
+  const clearAllNotifications = () => {
+    Alert.alert(
+      'Clear Notifications',
+      'Are you sure you want to clear all notifications?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: () => {
+            setNotifications([]);
+            // Also clear from AsyncStorage if needed
+            AsyncStorage.removeItem('adminNotifications');
+          },
+        },
+      ]
+    );
+  };
+
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -452,10 +474,21 @@ const AdminProfileScreen = () => {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Notifications</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Notifications</Text>
+          {notifications.length > 0 && (
+            <TouchableOpacity
+              style={styles.clearNotificationsButton}
+              onPress={clearAllNotifications}
+            >
+              <Ionicons name="trash-outline" size={16} color={COLORS.error} />
+              <Text style={styles.clearNotificationsText}>Clear All</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         <Card variant="flat" style={styles.notificationsCard}>
           {notifications.length === 0 ? (
-            <Text>No notifications</Text>
+            <Text style={styles.noNotificationsText}>No notifications</Text>
           ) : (
             notifications.map((notification) => (
               <Card
@@ -720,6 +753,32 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     fontWeight: '600',
     fontSize: FONTS.body3.fontSize,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SIZES.medium,
+  },
+  clearNotificationsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: `${COLORS.error}10`,
+    paddingHorizontal: SIZES.base,
+    paddingVertical: SIZES.base / 2,
+    borderRadius: SIZES.base,
+  },
+  clearNotificationsText: {
+    color: COLORS.error,
+    fontSize: FONTS.body4.fontSize,
+    fontWeight: '600',
+    marginLeft: SIZES.base / 2,
+  },
+  noNotificationsText: {
+    color: COLORS.textSecondary,
+    fontSize: FONTS.body3.fontSize,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });
 

@@ -124,25 +124,31 @@ const PaymentScreen = () => {
 
         const { id: order_id, amount, currency } = data.order;
 
-        // Check if this is a mock order (for testing)
-        if (data.isMockOrder) {
-          console.log('🎭 Mock order detected for shop payment, showing success message');
-          Alert.alert(
-            'Payment Success (Test Mode)', 
-            `Shop listing payment successful!\nOrder ID: ${order_id}\nAmount: ₹${amount / 100}\n\nThis is a test payment. In production, this would open Razorpay.`,
-            [
-              {
-                text: 'OK',
-                onPress: () => {
-                  // Navigate to payment success screen
-                  router.push({
-                    pathname: '/(tabs)/payment-success' as any,
-                    params: { order_id: order_id }
-                  });
-                }
-              }
-            ]
-          );
+        // Check if this is a mock order (for testing) or if we're in development mode
+        if (data.isMockOrder || __DEV__) {
+          console.log('🎭 Mock/Development mode detected for shop payment, showing success message');
+          // Store payment type for mock shop payment
+          AsyncStorage.setItem('paymentType', 'shop').then(() => {
+            // Store shop data for payment success screen
+            AsyncStorage.setItem('pendingShopData', JSON.stringify(shopData)).then(() => {
+              Alert.alert(
+                'Payment Success (Development Mode)', 
+                `Shop listing payment successful!\nOrder ID: ${order_id}\nAmount: ₹${amount / 100}\n\nThis is a development payment. In production, this would open Razorpay.`,
+                [
+                  {
+                    text: 'OK',
+                    onPress: () => {
+                      // Navigate to payment success screen
+                      router.push({
+                        pathname: '/(tabs)/payment-success' as any,
+                        params: { order_id: order_id }
+                      });
+                    }
+                  }
+                ]
+              );
+            });
+          });
           return;
         }
 
@@ -188,13 +194,20 @@ const PaymentScreen = () => {
           }
         })
           .then((paymentData: any) => {
-            // Payment Success
-            console.log('Shop payment successful:', paymentData);
+                    // Payment Success
+        console.log('Shop payment successful:', paymentData);
+        
+        // For shop payments, we don't have a booking ID, so we'll navigate to nearby shops
+        AsyncStorage.setItem('paymentType', 'shop').then(() => {
+          // Store shop data for payment success screen
+          AsyncStorage.setItem('pendingShopData', JSON.stringify(shopData)).then(() => {
             // Navigate to payment success screen with order_id
             router.push({
               pathname: '/(tabs)/payment-success' as any,
               params: { order_id: order_id }
             });
+          });
+        });
           })
           .catch((error: any) => {
             // Payment Failed
@@ -325,22 +338,28 @@ const PaymentScreen = () => {
       // Check if this is a mock order (for testing) - only for development
       if (data.isMockOrder) {
         console.log('🎭 Mock order detected, showing success message');
-        Alert.alert(
-          'Payment Success (Development Mode)', 
-          `Mock payment successful!\nOrder ID: ${order_id}\nAmount: ₹${amount / 100}\n\nThis is a development payment. In production, this would open Razorpay.`,
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                // Navigate to payment success screen
-                router.push({
-                  pathname: '/(tabs)/payment-success' as any,
-                  params: { order_id: order_id }
-                });
-              }
-            }
-          ]
-        );
+        // Store booking ID and payment type for mock payment
+        const bookingIdToStore = isMultipleService ? bookingResponse.parentBooking._id : bookingResponse._id;
+        AsyncStorage.setItem('lastBookingId', bookingIdToStore).then(() => {
+          AsyncStorage.setItem('paymentType', 'booking').then(() => {
+            Alert.alert(
+              'Payment Success (Development Mode)', 
+              `Mock payment successful!\nOrder ID: ${order_id}\nAmount: ₹${amount / 100}\n\nThis is a development payment. In production, this would open Razorpay.`,
+              [
+                {
+                  text: 'OK',
+                  onPress: () => {
+                    // Navigate to payment success screen
+                    router.push({
+                      pathname: '/(tabs)/payment-success' as any,
+                      params: { order_id: order_id }
+                    });
+                  }
+                }
+              ]
+            );
+          });
+        });
         return;
       }
 
@@ -386,13 +405,20 @@ const PaymentScreen = () => {
         }
       })
         .then((paymentData: any) => {
-          // Payment Success
-          console.log('Payment successful:', paymentData);
-          // Navigate to payment success screen with order_id
-          router.push({
-            pathname: '/(tabs)/payment-success' as any,
-            params: { order_id: order_id }
+                  // Payment Success
+        console.log('Payment successful:', paymentData);
+        
+        // Store booking ID and payment type for payment success screen
+        const bookingIdToStore = isMultipleService ? bookingResponse.parentBooking._id : bookingResponse._id;
+        AsyncStorage.setItem('lastBookingId', bookingIdToStore).then(() => {
+          AsyncStorage.setItem('paymentType', 'booking').then(() => {
+            // Navigate to payment success screen with order_id
+            router.push({
+              pathname: '/(tabs)/payment-success' as any,
+              params: { order_id: order_id }
+            });
           });
+        });
         })
         .catch((error: any) => {
           // Payment Failed

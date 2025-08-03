@@ -42,7 +42,15 @@ const AdminJobsScreen = () => {
         const res = await axios.get(`${'https://digital-mistri.onrender.com'}/api/jobs/all`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        setJobs(res.data);
+        
+        // Sort jobs by creation date (newest first)
+        const sortedJobs = res.data.sort((a: Job, b: Job) => {
+          const dateA = new Date(a.createdAt).getTime();
+          const dateB = new Date(b.createdAt).getTime();
+          return dateB - dateA; // Descending order (newest first)
+        });
+        
+        setJobs(sortedJobs);
       } catch (e) {
         setJobs([]);
       } finally {

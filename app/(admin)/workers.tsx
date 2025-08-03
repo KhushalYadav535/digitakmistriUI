@@ -14,6 +14,7 @@ interface Worker {
   email: string;
   phone: string;
   isVerified: boolean;
+  isAvailable: boolean;
   services: string[];
   stats: {
     totalBookings: number;
@@ -224,13 +225,29 @@ const AdminWorkersScreen = () => {
     });
   };
 
-  // Show all workers, only filter by search query (not by status)
-  const filteredWorkers = workers.filter((worker) =>
-    (worker.name && worker.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (worker.services && worker.services.some(service => 
-      service && service.toLowerCase().includes(searchQuery.toLowerCase())
-    ))
-  );
+  // Filter workers based on search query and selected filter
+  const filteredWorkers = workers.filter((worker) => {
+    // First check if worker matches search query
+    const matchesSearch = (worker.name && worker.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (worker.services && worker.services.some(service => 
+        service && service.toLowerCase().includes(searchQuery.toLowerCase())
+      ));
+    
+    if (!matchesSearch) return false;
+    
+    // Then apply filter based on selectedFilter
+    switch (selectedFilter) {
+      case 'pending':
+        return !worker.isVerified;
+      case 'active':
+        return worker.isVerified;
+      case 'available':
+        return worker.isAvailable;
+      case 'all':
+      default:
+        return true;
+    }
+  });
 
   if (loading) {
     return (
@@ -277,6 +294,31 @@ const AdminWorkersScreen = () => {
         />
       </View>
 
+      {/* Availability Summary */}
+      <View style={styles.summaryContainer}>
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryTitle}>Worker Status</Text>
+          <View style={styles.summaryStats}>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryValue}>{workers.length}</Text>
+              <Text style={styles.summaryLabel}>Total</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryValue}>{workers.filter(w => w.isAvailable).length}</Text>
+              <Text style={styles.summaryLabel}>Available</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryValue}>{workers.filter(w => !w.isAvailable).length}</Text>
+              <Text style={styles.summaryLabel}>Unavailable</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryValue}>{workers.filter(w => w.isVerified).length}</Text>
+              <Text style={styles.summaryLabel}>Verified</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+
       <View style={styles.filterContainer}>
         <TouchableOpacity
           style={[styles.filterButton, selectedFilter === 'all' && styles.filterButtonActive]}
@@ -302,6 +344,14 @@ const AdminWorkersScreen = () => {
             Active
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterButton, selectedFilter === 'available' && styles.filterButtonActive]}
+          onPress={() => setSelectedFilter('available')}
+        >
+          <Text style={[styles.filterText, selectedFilter === 'available' && styles.filterTextActive]}>
+            Available
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.content}>
@@ -321,6 +371,18 @@ const AdminWorkersScreen = () => {
                   <Text style={styles.workerService}>
                     {Array.isArray(worker.services) ? worker.services.join(', ') : ''}
                   </Text>
+                  <View style={styles.statusContainer}>
+                    <View style={[styles.statusBadge, { backgroundColor: worker.isVerified ? COLORS.success + '20' : COLORS.error + '20' }]}>
+                      <Text style={[styles.statusText, { color: worker.isVerified ? COLORS.success : COLORS.error }]}>
+                        {worker.isVerified ? 'Verified' : 'Unverified'}
+                      </Text>
+                    </View>
+                    <View style={[styles.statusBadge, { backgroundColor: worker.isAvailable ? COLORS.success + '20' : COLORS.warning + '20' }]}>
+                      <Text style={[styles.statusText, { color: worker.isAvailable ? COLORS.success : COLORS.warning }]}>
+                        {worker.isAvailable ? 'Available' : 'Unavailable'}
+                      </Text>
+                    </View>
+                  </View>
                 </View>
                 <View style={styles.workerStats}>
                   <Text style={styles.workerRating}>
@@ -452,6 +514,39 @@ const styles = StyleSheet.create({
     marginLeft: SIZES.base,
     fontSize: FONTS.body3.fontSize,
   },
+  summaryContainer: {
+    paddingHorizontal: SIZES.medium,
+    marginBottom: SIZES.medium,
+  },
+  summaryCard: {
+    backgroundColor: COLORS.white,
+    padding: SIZES.medium,
+    borderRadius: SIZES.base,
+    ...SHADOWS.light,
+  },
+  summaryTitle: {
+    fontSize: FONTS.h4.fontSize,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+    marginBottom: SIZES.medium,
+  },
+  summaryStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  summaryItem: {
+    alignItems: 'center',
+  },
+  summaryValue: {
+    fontSize: FONTS.h3.fontSize,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+  },
+  summaryLabel: {
+    fontSize: FONTS.body4.fontSize,
+    color: COLORS.textSecondary,
+    marginTop: SIZES.base / 2,
+  },
   filterContainer: {
     flexDirection: 'row',
     paddingHorizontal: SIZES.medium,
@@ -498,6 +593,20 @@ const styles = StyleSheet.create({
     fontSize: FONTS.body3.fontSize,
     color: COLORS.textSecondary,
     marginTop: SIZES.base / 2,
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    marginTop: SIZES.base,
+    gap: SIZES.base,
+  },
+  statusBadge: {
+    paddingHorizontal: SIZES.base,
+    paddingVertical: SIZES.base / 2,
+    borderRadius: SIZES.base / 2,
+  },
+  statusText: {
+    fontSize: FONTS.body4.fontSize,
+    fontWeight: '600',
   },
   workerStats: {
     alignItems: 'flex-end',

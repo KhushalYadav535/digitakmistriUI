@@ -9,7 +9,8 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
-  Linking
+  Linking,
+  TextInput
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -47,6 +48,7 @@ export default function NearbyShopsScreen() {
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [userLocation, setUserLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -55,6 +57,18 @@ export default function NearbyShopsScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
+
+  // Filter shops based on search query
+  const filteredShops = shops.filter(shop =>
+    shop.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    shop.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    shop.services.some(service => 
+      service.toLowerCase().includes(searchQuery.toLowerCase())
+    ) ||
+    shop.address.street.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    shop.address.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    shop.address.state.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   useEffect(() => {
     getLocation();
@@ -184,6 +198,29 @@ export default function NearbyShopsScreen() {
         </TouchableOpacity>
       </View>
 
+      <View style={styles.searchContainer}>
+        <View style={styles.searchInputContainer}>
+          <Ionicons name="search" size={20} color={COLORS.textSecondary} style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search shops by name, services, or location..."
+            placeholderTextColor={COLORS.textSecondary}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
+              <Ionicons name="close-circle" size={20} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+          )}
+        </View>
+        {searchQuery.length > 0 && (
+          <Text style={styles.searchResultsCount}>
+            {filteredShops.length} shop{filteredShops.length !== 1 ? 's' : ''} found
+          </Text>
+        )}
+      </View>
+
       <ScrollView
         style={styles.scrollView}
         refreshControl={
@@ -191,12 +228,20 @@ export default function NearbyShopsScreen() {
         }
         ref={scrollViewRef}
       >
-        {shops.length === 0 ? (
+        {filteredShops.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No shops found nearby</Text>
+            <Text style={styles.emptyText}>
+              {searchQuery.length > 0 
+                ? `No shops found for "${searchQuery}"` 
+                : 'No shops found nearby'
+              }
+            </Text>
+            {searchQuery.length > 0 && (
+              <Text style={styles.emptySubtext}>Try searching with different keywords</Text>
+            )}
           </View>
         ) : (
-          shops.map((shop, index) => (
+          filteredShops.map((shop, index) => (
             <View key={shop._id || index} style={styles.shopCard}>
               <View style={styles.shopImageContainer}>
                 {shop.images && shop.images.length > 0 ? (
@@ -457,5 +502,45 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 6,
+  },
+  searchContainer: {
+    paddingHorizontal: SIZES.medium,
+    paddingBottom: SIZES.small,
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.lightGray,
+    borderRadius: SIZES.radius,
+    paddingHorizontal: SIZES.base,
+    paddingVertical: SIZES.small,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: FONTS.body3.fontSize,
+    color: COLORS.textPrimary,
+    paddingVertical: 0,
+    paddingHorizontal: SIZES.base,
+  },
+  searchIcon: {
+    marginRight: SIZES.base,
+  },
+  clearButton: {
+    padding: SIZES.small,
+  },
+  emptySubtext: {
+    fontSize: FONTS.body3.fontSize,
+    color: COLORS.textSecondary,
+    marginTop: SIZES.small,
+    textAlign: 'center',
+  },
+  searchResultsCount: {
+    fontSize: FONTS.body3.fontSize,
+    color: COLORS.textSecondary,
+    marginTop: SIZES.small,
+    textAlign: 'center',
   },
 }); 

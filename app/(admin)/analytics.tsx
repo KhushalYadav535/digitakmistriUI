@@ -18,7 +18,7 @@ const AdminAnalyticsScreen = () => {
     totalWorkers: 0,
     totalActiveJobs: 0,
     totalEarnings: 0,
-    newRequests: 0
+    adminCommission: 0
   });
 
   useEffect(() => {
@@ -47,7 +47,7 @@ const AdminAnalyticsScreen = () => {
           totalWorkers: data.totalWorkers || 0,
           totalActiveJobs: data.activeJobs || 0,
           totalEarnings: data.totalEarnings || 0,
-          newRequests: data.newRequests || 0
+          adminCommission: data.adminCommission || 0
         });
 
         console.log('Analytics Data:', data); // Debug log
@@ -120,13 +120,13 @@ const AdminAnalyticsScreen = () => {
           </Card>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => handleCardPress('requests')}>
+        <TouchableOpacity onPress={() => handleCardPress('commission')}>
           <Card variant="elevated" style={styles.statCard}>
             <View style={styles.statIconContainer}>
-              <Ionicons name="notifications" size={24} color={COLORS.error} />
+              <Ionicons name="cash" size={24} color={COLORS.error} />
             </View>
-            <Text style={styles.statValue}>{dashboardStats.newRequests}</Text>
-            <Text style={styles.statLabel}>New Requests</Text>
+            <Text style={styles.statValue}>₹{dashboardStats.adminCommission}</Text>
+            <Text style={styles.statLabel}>Commission</Text>
           </Card>
         </TouchableOpacity>
       </View>

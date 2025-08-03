@@ -16,7 +16,7 @@ import { COLORS, FONTS, SHADOWS, SIZES } from './constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_URL } from './constants/config';
-import { fetchServicePrices, getServicePrice, ServicePrice, clearServicePriceCache } from './utils/serviceUtils';
+import { fetchServicePrices, getServicePrice, ServicePrice, clearServicePriceCache, fetchAllServices } from './utils/serviceUtils';
 import PriceUpdateNotification from './components/PriceUpdateNotification';
 
 const serviceMeta = {
@@ -362,10 +362,10 @@ const serviceMeta = {
 
 const ServiceDetailsScreen = () => {
     const { id } = useLocalSearchParams();
-    const service = serviceMeta[id as keyof typeof serviceMeta];
     const [bookedServices, setBookedServices] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [servicePrices, setServicePrices] = useState<ServicePrice[]>([]);
+    const [dynamicServices, setDynamicServices] = useState<any>({});
     const [refreshing, setRefreshing] = useState(false);
     const [showPriceNotification, setShowPriceNotification] = useState(false);
     const [selectedServices, setSelectedServices] = useState<Array<{
@@ -375,32 +375,74 @@ const ServiceDetailsScreen = () => {
     }>>([]);
     const [showSelectedModal, setShowSelectedModal] = useState(false);
 
+    // Get service data - merge static and dynamic
+    const getServiceData = () => {
+        const staticService = serviceMeta[id as keyof typeof serviceMeta];
+        const dynamicService = dynamicServices[id as string];
+        
+        if (dynamicService) {
+            // Use dynamic service data
+            return {
+                ...dynamicService,
+                color: staticService?.color || '#E3F2FD',
+                icon: staticService?.icon || <MaterialIcons name="build" size={36} color="#2196F3" />
+            };
+        }
+        
+        return staticService;
+    };
+
+    const service = getServiceData();
+
     useEffect(() => {
-        fetchBookedServices();
-        fetchServicePrices().then(setServicePrices);
+        const initializeData = async () => {
+            try {
+                // Clear cache first
+                clearServicePriceCache();
+                
+                await fetchBookedServices();
+                const prices = await fetchServicePrices();
+                setServicePrices(prices);
+                await fetchDynamicServices();
+                
+                console.log('Initial data loaded. Prices count:', prices.length);
+            } catch (error) {
+                console.error('Error initializing data:', error);
+            }
+        };
         
-        // Set up periodic refresh every 30 seconds to check for price updates
-        const interval = setInterval(() => {
-            fetchServicePrices().then(newPrices => {
-                // Check if prices have changed
-                if (JSON.stringify(newPrices) !== JSON.stringify(servicePrices)) {
-                    setServicePrices(newPrices);
-                    setShowPriceNotification(true);
-                }
-            });
-        }, 30000); // 30 seconds
+        initializeData();
         
-        return () => clearInterval(interval);
-    }, [servicePrices]);
+        // No automatic refresh - only manual refresh
+        return () => {
+            // Cleanup if needed
+        };
+    }, []);
+
+    const fetchDynamicServices = async () => {
+        try {
+            const allServices = await fetchAllServices();
+            setDynamicServices(allServices);
+        } catch (error) {
+            console.error('Error fetching dynamic services:', error);
+        }
+    };
 
     const onRefresh = async () => {
         setRefreshing(true);
         try {
+            // Clear cache and force refresh
+            clearServicePriceCache();
+            
             await fetchBookedServices();
             const prices = await fetchServicePrices();
             setServicePrices(prices);
+            await fetchDynamicServices();
+            
             // Show notification that prices have been refreshed
             setShowPriceNotification(true);
+            
+            console.log('Refresh completed. New prices:', prices);
         } catch (error) {
             console.error('Error refreshing:', error);
         } finally {
@@ -515,11 +557,33 @@ const ServiceDetailsScreen = () => {
     };
 
     const getCurrentPrice = (serviceTitle: string, defaultPrice: string): string => {
-        const dbPrice = getServicePrice(servicePrices, id as string, serviceTitle);
-        console.log(`Service: ${serviceTitle}, ServiceType: ${id}, DB Price: ${dbPrice}, Default: ${defaultPrice}`);
+        // Map the service ID to the correct service type for database lookup
+        let serviceType = id as string;
+        
+        // Handle special cases where service ID doesn't match database service type
+        if (serviceType === 'electronic') {
+            serviceType = 'electronics';
+        }
+        
+        console.log(`Getting current price for: ${serviceTitle} (${serviceType})`);
+        console.log(`Available service prices count: ${servicePrices.length}`);
+        
+        // If no service prices loaded yet, return default
+        if (servicePrices.length === 0) {
+            console.log('No service prices loaded yet, using default');
+            return defaultPrice;
+        }
+        
+        const dbPrice = getServicePrice(servicePrices, serviceType, serviceTitle);
+        console.log(`Service: ${serviceTitle}, ServiceType: ${serviceType}, DB Price: ${dbPrice}, Default: ${defaultPrice}`);
+        
         if (dbPrice !== null) {
+            console.log(`Using database price: ₹${dbPrice}`);
             return `₹${dbPrice}`;
         }
+        
+        // If no database price found, return default price
+        console.log(`No database price found, using default: ${defaultPrice}`);
         return defaultPrice;
     };
 
@@ -598,7 +662,7 @@ const ServiceDetailsScreen = () => {
                             {service.services.length === 0 && (
                                 <Text style={{ color: COLORS.textSecondary, marginTop: 10 }}>No services listed.</Text>
                             )}
-                            {service.services.map((item, idx) => (
+                            {service.services.map((item: any, idx: number) => (
                                 <View key={idx} style={styles.serviceItemContainer}>
                                     <TouchableOpacity 
                                         style={[
