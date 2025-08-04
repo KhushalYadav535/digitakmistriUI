@@ -337,20 +337,7 @@ const AdminDashboardScreen = () => {
         )}
       </View>
 
-      {/* Service Analytics */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Service Analytics</Text>
-        {overview?.services && overview.services.length > 0 ? (
-          overview.services.map((service: any) => (
-            <Card key={service.name || service._id} variant="elevated" style={styles.statCard}>
-              <Text style={styles.statValue}>{service.name}: {service.count}</Text>
-              <Text style={styles.statLabel}>Active</Text>
-            </Card>
-          ))
-        ) : (
-          <Text style={{ color: COLORS.textSecondary, marginLeft: 8 }}>No data available</Text>
-        )}
-      </View>
+
     </ScrollView>
   );
 };

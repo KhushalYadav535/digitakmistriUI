@@ -25,21 +25,58 @@ export default function PaymentSuccessScreen() {
           return;
         }
 
-        // Get booking ID and payment type from AsyncStorage
-        const storedBookingId = await AsyncStorage.getItem('lastBookingId');
+        // Get payment type and pending booking data from AsyncStorage
         const storedPaymentType = await AsyncStorage.getItem('paymentType');
         const storedShopData = await AsyncStorage.getItem('pendingShopData');
-        
-        if (storedBookingId) {
-          setBookingId(storedBookingId);
-          // Clear the stored booking ID after retrieving it
-          await AsyncStorage.removeItem('lastBookingId');
-        }
+        const pendingBookingData = await AsyncStorage.getItem('pendingBookingData');
         
         if (storedPaymentType) {
           setPaymentType(storedPaymentType);
           // Clear payment type
           await AsyncStorage.removeItem('paymentType');
+        }
+
+        // Handle booking creation after successful payment
+        if (storedPaymentType === 'booking' && pendingBookingData) {
+          try {
+            const bookingData = JSON.parse(pendingBookingData);
+            console.log('📋 Creating booking after payment success:', bookingData);
+            
+            // Create the booking via API
+            const bookingResponse = await fetch(`${API_URL}/payment/create-booking-after-payment`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                orderId: order_id,
+                paymentId: `payment_${Date.now()}`, // Generate a payment ID
+                bookingData: bookingData.bookingData,
+                isMultipleService: bookingData.isMultipleService
+              })
+            });
+
+            if (bookingResponse.ok) {
+              const createdBooking = await bookingResponse.json();
+              console.log('✅ Booking created successfully:', createdBooking);
+              
+              // Set the booking ID for navigation
+              const bookingIdToSet = bookingData.isMultipleService 
+                ? createdBooking.booking.parentBooking._id 
+                : createdBooking.booking._id;
+              setBookingId(bookingIdToSet);
+              
+              // Clear pending booking data after successful creation
+              await AsyncStorage.removeItem('pendingBookingData');
+            } else {
+              console.error('❌ Failed to create booking:', await bookingResponse.text());
+              throw new Error('Failed to create booking after payment');
+            }
+          } catch (bookingError) {
+            console.error('❌ Error creating booking:', bookingError);
+            throw new Error('Failed to create booking after payment');
+          }
         }
 
         // Handle shop creation after payment success
@@ -92,9 +129,6 @@ export default function PaymentSuccessScreen() {
                 if (isShopPayment) {
                   // Navigate to nearby shops for shop payments
                   router.replace('/(tabs)/nearby-shops');
-                } else if (storedBookingId) {
-                  // Navigate directly to the specific booking details
-                  router.replace(`/(tabs)/booking-status/${storedBookingId}`);
                 } else {
                   // Fallback to bookings list
                   router.replace('/(tabs)/bookings');

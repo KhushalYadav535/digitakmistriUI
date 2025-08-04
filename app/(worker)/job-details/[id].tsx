@@ -164,7 +164,7 @@ const JobDetailsScreen = () => {
   };
 
 
-  const handleJobAction = async (action: 'start' | 'complete' | 'cancel') => {
+  const handleJobAction = async (action: 'start' | 'cancel') => {
     try {
       const token = await AsyncStorage.getItem('token');
       let endpoint = '';
@@ -172,9 +172,6 @@ const JobDetailsScreen = () => {
       switch (action) {
         case 'start':
           endpoint = `/worker/jobs/${id}/start`;
-          break;
-        case 'complete':
-          endpoint = `/worker/jobs/${id}/complete`;
           break;
         case 'cancel':
           endpoint = `/worker/jobs/${id}/cancel`;

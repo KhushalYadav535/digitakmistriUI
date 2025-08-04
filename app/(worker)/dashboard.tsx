@@ -168,7 +168,7 @@ const WorkerDashboardScreen = () => {
     }).start();
   }, []);
 
-  const handleJobAction = async (jobId: string, action: 'start' | 'complete' | 'cancel' | 'view') => {
+  const handleJobAction = async (jobId: string, action: 'start' | 'cancel' | 'view') => {
     try {
       const token = await AsyncStorage.getItem('token');
       
@@ -178,12 +178,6 @@ const WorkerDashboardScreen = () => {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           Alert.alert(t('success'), t('worker.job_started_successfully'));
-          break;
-        case 'complete':
-          await apiClient.post(`/worker/jobs/${jobId}/complete`, {}, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          Alert.alert(t('success'), t('worker.job_completed_successfully'));
           break;
         case 'cancel':
           await apiClient.post(`/worker/jobs/${jobId}/cancel`, {}, {
@@ -209,7 +203,6 @@ const WorkerDashboardScreen = () => {
     } catch (err: any) {
       console.error('Job action error:', err);
       const errorMessage = action === 'start' ? t('worker.failed_to_start_job') : 
-                          action === 'complete' ? t('worker.failed_to_complete_job') : 
                           action === 'cancel' ? t('worker.failed_to_cancel_job') : 
                           err.message || `Failed to ${action} job`;
       Alert.alert(t('error'), errorMessage);
@@ -327,13 +320,6 @@ const WorkerDashboardScreen = () => {
         <Button
           title={t('worker.start')}
           onPress={() => handleJobAction(job._id, 'start')}
-          variant="success"
-        />
-      )}
-      {job.status === 'In Progress' && (
-        <Button
-          title={t('worker.complete')}
-          onPress={() => handleJobAction(job._id, 'complete')}
           variant="success"
         />
       )}
@@ -483,6 +469,7 @@ const WorkerDashboardScreen = () => {
                 >
                   <Text style={styles.statValue}>{`₹${worker?.stats?.totalEarnings || 0}`}</Text>
                   <Text style={styles.statLabel}>{t('worker.total_earnings')}</Text>
+                  <Text style={styles.statSubLabel}>{t('worker.after_commission_deduction')}</Text>
                 </LinearGradient>
               </Card>
             </TouchableOpacity>
@@ -749,6 +736,12 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: FONTS.body3.fontSize,
     color: COLORS.textSecondary,
+  },
+  statSubLabel: {
+    fontSize: FONTS.body4.fontSize,
+    color: COLORS.textSecondary,
+    opacity: 0.8,
+    marginTop: 2,
   },
   earningsPeriodSelector: {
     flexDirection: 'row',

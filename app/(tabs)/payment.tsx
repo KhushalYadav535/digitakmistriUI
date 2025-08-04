@@ -242,64 +242,17 @@ const PaymentScreen = () => {
       // Determine if this is a multiple service booking
       const isMultipleService = selectedServices && selectedServices.length > 1;
 
-      let bookingResponse;
-      if (isMultipleService) {
-        // Call multiple services booking API
-        console.log('Creating multiple services booking...');
-        const response = await fetch(`${API_URL}/bookings/multiple-services`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            services: bookingData.services,
-            bookingDate: bookingData.date,
-            bookingTime: bookingData.time,
-            address: bookingData.address,
-            phone: bookingData.phone,
-            gpsCoordinates: bookingData.gpsCoordinates
-          })
-        });
+      // Store booking data for later creation after successful payment
+      const bookingDataToStore = {
+        isMultipleService,
+        bookingData,
+        selectedServices
+      };
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to create multiple services booking');
-        }
+      // Store booking data in AsyncStorage for payment success handler
+      await AsyncStorage.setItem('pendingBookingData', JSON.stringify(bookingDataToStore));
 
-        bookingResponse = await response.json();
-        console.log('Multiple services booking created:', bookingResponse);
-      } else {
-        // Call single service booking API
-        console.log('Creating single service booking...');
-        const response = await fetch(`${API_URL}/bookings`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            serviceType: bookingData.serviceId,
-            serviceTitle: bookingData.serviceTitle,
-            bookingDate: bookingData.date,
-            bookingTime: bookingData.time,
-            address: bookingData.address,
-            phone: bookingData.phone,
-            amount: bookingData.amount,
-            gpsCoordinates: bookingData.gpsCoordinates
-          })
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to create booking');
-        }
-
-        bookingResponse = await response.json();
-        console.log('Single service booking created:', bookingResponse);
-      }
-
-      // Call backend to create Razorpay order
+      // Call backend to create Razorpay order (without booking ID since booking will be created after payment)
       console.log('💰 Creating Razorpay order with amount:', displayAmount * 100);
       const res = await fetch(`${API_URL}/payment/create-order`, {
         method: 'POST',
@@ -310,7 +263,10 @@ const PaymentScreen = () => {
         body: JSON.stringify({ 
           amount: displayAmount * 100, // Convert to paise
           currency: 'INR',
-          bookingId: isMultipleService ? bookingResponse.parentBooking._id : bookingResponse._id
+          notes: {
+            isMultipleService,
+            bookingData: JSON.stringify(bookingData)
+          }
         })
       });
 
@@ -338,27 +294,24 @@ const PaymentScreen = () => {
       // Check if this is a mock order (for testing) - only for development
       if (data.isMockOrder) {
         console.log('🎭 Mock order detected, showing success message');
-        // Store booking ID and payment type for mock payment
-        const bookingIdToStore = isMultipleService ? bookingResponse.parentBooking._id : bookingResponse._id;
-        AsyncStorage.setItem('lastBookingId', bookingIdToStore).then(() => {
-          AsyncStorage.setItem('paymentType', 'booking').then(() => {
-            Alert.alert(
-              'Payment Success (Development Mode)', 
-              `Mock payment successful!\nOrder ID: ${order_id}\nAmount: ₹${amount / 100}\n\nThis is a development payment. In production, this would open Razorpay.`,
-              [
-                {
-                  text: 'OK',
-                  onPress: () => {
-                    // Navigate to payment success screen
-                    router.push({
-                      pathname: '/(tabs)/payment-success' as any,
-                      params: { order_id: order_id }
-                    });
-                  }
+        // Store payment type for mock payment
+        AsyncStorage.setItem('paymentType', 'booking').then(() => {
+          Alert.alert(
+            'Payment Success (Development Mode)', 
+            `Mock payment successful!\nOrder ID: ${order_id}\nAmount: ₹${amount / 100}\n\nThis is a development payment. In production, this would open Razorpay.`,
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  // Navigate to payment success screen
+                  router.push({
+                    pathname: '/(tabs)/payment-success' as any,
+                    params: { order_id: order_id }
+                  });
                 }
-              ]
-            );
-          });
+              }
+            ]
+          );
         });
         return;
       }
@@ -405,12 +358,10 @@ const PaymentScreen = () => {
         }
       })
         .then((paymentData: any) => {
-                  // Payment Success
-        console.log('Payment successful:', paymentData);
-        
-        // Store booking ID and payment type for payment success screen
-        const bookingIdToStore = isMultipleService ? bookingResponse.parentBooking._id : bookingResponse._id;
-        AsyncStorage.setItem('lastBookingId', bookingIdToStore).then(() => {
+          // Payment Success
+          console.log('Payment successful:', paymentData);
+          
+          // Store payment type for payment success screen
           AsyncStorage.setItem('paymentType', 'booking').then(() => {
             // Navigate to payment success screen with order_id
             router.push({
@@ -418,7 +369,6 @@ const PaymentScreen = () => {
               params: { order_id: order_id }
             });
           });
-        });
         })
         .catch((error: any) => {
           // Payment Failed

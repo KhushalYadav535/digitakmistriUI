@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, RefreshControl } from 'react-native';
 import Card from '../../components/Card';
 import { COLORS, FONTS, SHADOWS, SIZES } from '../constants/theme';
 import axios from 'axios';
@@ -29,6 +29,8 @@ const AdminWorkersScreen = () => {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
 
   const checkAuth = async () => {
     try {
@@ -113,9 +115,14 @@ const AdminWorkersScreen = () => {
     return null;
   };
 
-  const fetchWorkers = async () => {
+  const fetchWorkers = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      
       const token = await checkAuth();
       if (!token) return;
 
@@ -134,16 +141,25 @@ const AdminWorkersScreen = () => {
       }
       setWorkers(response.data);
       setError('');
+      setLastRefreshed(new Date());
     } catch (err) {
       console.error('Error fetching workers:', err);
       await handleAuthError(err);
     } finally {
-      setLoading(false);
+      if (isRefresh) {
+        setRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
     fetchWorkers();
+  }, []);
+
+  const onRefresh = React.useCallback(async () => {
+    await fetchWorkers(true);
   }, []);
 
   const handleApprove = async (workerId: string) => {
@@ -261,7 +277,7 @@ const AdminWorkersScreen = () => {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchWorkers}>
+        <TouchableOpacity style={styles.retryButton} onPress={() => fetchWorkers()}>
           <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.retryButton, {marginTop: 10, backgroundColor: COLORS.error}]} onPress={() => router.replace('/(auth)/admin-login' as any)}>
@@ -272,9 +288,27 @@ const AdminWorkersScreen = () => {
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView 
+      style={styles.container} 
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={[COLORS.primary]}
+          tintColor={COLORS.primary}
+        />
+      }
+    >
       <View style={styles.header}>
-        <Text style={styles.title}>Worker Management</Text>
+        <View>
+          <Text style={styles.title}>Worker Management</Text>
+          {lastRefreshed && (
+            <Text style={styles.lastRefreshedText}>
+              Last updated: {lastRefreshed.toLocaleTimeString()}
+            </Text>
+          )}
+        </View>
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => router.push('/add-worker' as any)}
@@ -297,7 +331,20 @@ const AdminWorkersScreen = () => {
       {/* Availability Summary */}
       <View style={styles.summaryContainer}>
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>Worker Status</Text>
+          <View style={styles.summaryHeader}>
+            <Text style={styles.summaryTitle}>Worker Status</Text>
+            <TouchableOpacity 
+              style={styles.refreshButton}
+              onPress={() => fetchWorkers(true)}
+              disabled={refreshing}
+            >
+              <Ionicons 
+                name="refresh" 
+                size={20} 
+                color={refreshing ? COLORS.textSecondary : COLORS.primary} 
+              />
+            </TouchableOpacity>
+          </View>
           <View style={styles.summaryStats}>
             <View style={styles.summaryItem}>
               <Text style={styles.summaryValue}>{workers.length}</Text>
@@ -487,6 +534,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.textPrimary,
   },
+  lastRefreshedText: {
+    fontSize: FONTS.body4.fontSize,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -529,6 +581,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.textPrimary,
     marginBottom: SIZES.medium,
+  },
+  summaryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SIZES.medium,
+  },
+  refreshButton: {
+    padding: SIZES.base,
+    borderRadius: SIZES.base,
   },
   summaryStats: {
     flexDirection: 'row',
