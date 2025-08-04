@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, Button, StyleSheet, Alert } from 'react-native';
 import RazorpayCheckout from 'react-native-razorpay';
-import { API_URL } from '../constants/config';
+import { API_URL, RAZORPAY_CONFIG } from '../constants/config';
 import { useLocalSearchParams, router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
-
-const RAZORPAY_KEY_ID = 'rzp_test_yCyh9MfP8o6z3K';
 
 const PaymentScreen = () => {
   const [loading, setLoading] = useState(false);
@@ -125,8 +123,8 @@ const PaymentScreen = () => {
         const { id: order_id, amount, currency } = data.order;
 
         // Check if this is a mock order (for testing) or if we're in development mode
-        if (data.isMockOrder || __DEV__) {
-          console.log('🎭 Mock/Development mode detected for shop payment, showing success message');
+        if (data.isMockOrder) {
+          console.log('🎭 Mock order detected for shop payment, showing success message');
           // Store payment type for mock shop payment
           AsyncStorage.setItem('paymentType', 'shop').then(() => {
             // Store shop data for payment success screen
@@ -162,7 +160,7 @@ const PaymentScreen = () => {
 
         // Open Razorpay Checkout for shop payment
         RazorpayCheckout.open({
-          key: RAZORPAY_KEY_ID,
+          key: RAZORPAY_CONFIG.key_id,
           amount: amount,
           currency: currency,
           name: 'Digital Mistri',
@@ -324,9 +322,9 @@ const PaymentScreen = () => {
         return;
       }
 
-      // Open Razorpay Checkout
-      RazorpayCheckout.open({
-        key: RAZORPAY_KEY_ID,
+              // Open Razorpay Checkout
+        RazorpayCheckout.open({
+          key: RAZORPAY_CONFIG.key_id,
         amount: amount,
         currency: currency,
         name: 'Digital Mistri',

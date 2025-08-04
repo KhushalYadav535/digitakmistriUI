@@ -34,6 +34,15 @@ export const ENV = isDevelopment ? 'development' : 'production';
 
 export const SOCKET_URL = isDevelopment ? 'http://192.168.1.3:5000' : 'https://digital-mistri.onrender.com';
 
+// Razorpay Configuration
+export const RAZORPAY_CONFIG = {
+  key_id: isDevelopment ? 'rzp_test_yCyh9MfP8o6z3K' : 'rzp_live_YOUR_LIVE_KEY', // Replace with your live key for production
+  currency: 'INR',
+  name: 'Digital Mistri',
+  description: 'Service Payment',
+  theme: { color: '#007AFF' }
+};
+
 // Function to get current API URL
 export const getCurrentApiUrl = async () => {
   return isDevelopment ? LOCAL_API : PROD_API;
