@@ -37,6 +37,7 @@ export default function PaymentSuccessScreen() {
         }
 
         // Handle booking creation after successful payment
+        let bookingCreationSuccess = false;
         if (storedPaymentType === 'booking' && pendingBookingData) {
           try {
             const bookingData = JSON.parse(pendingBookingData);
@@ -69,6 +70,7 @@ export default function PaymentSuccessScreen() {
               
               // Clear pending booking data after successful creation
               await AsyncStorage.removeItem('pendingBookingData');
+              bookingCreationSuccess = true;
             } else {
               const errorText = await bookingResponse.text();
               console.error('❌ Failed to create booking:', errorText);
@@ -130,11 +132,24 @@ export default function PaymentSuccessScreen() {
         
         // Show success message based on payment type
         const isShopPayment = storedPaymentType === 'shop';
-        const alertMessage = isShopPayment 
-          ? 'Your payment has been completed successfully and your shop has been added! You can now view your shop in the nearby shops section.'
-          : 'Your payment has been completed successfully. You can now view your booking details.';
+        let alertMessage = '';
+        let alertButtonText = '';
         
-        const alertButtonText = isShopPayment ? 'View Nearby Shops' : 'View Booking Details';
+        if (isShopPayment) {
+          alertMessage = 'Your payment has been completed successfully and your shop has been added! You can now view your shop in the nearby shops section.';
+          alertButtonText = 'View Nearby Shops';
+        } else if (storedPaymentType === 'booking') {
+          if (bookingCreationSuccess) {
+            alertMessage = 'Your payment has been completed successfully and your booking has been created! You can now view your booking details.';
+            alertButtonText = 'View Booking Details';
+          } else {
+            alertMessage = 'Your payment has been completed successfully. You can now view your booking details.';
+            alertButtonText = 'View Booking Details';
+          }
+        } else {
+          alertMessage = 'Your payment has been completed successfully. You can now view your booking details.';
+          alertButtonText = 'View Booking Details';
+        }
         
         Alert.alert(
           'Payment Successful!', 
@@ -148,7 +163,7 @@ export default function PaymentSuccessScreen() {
                   router.replace('/(tabs)/nearby-shops');
                 } else {
                   // Show a message if booking creation failed but payment was successful
-                  if (storedPaymentType === 'booking' && pendingBookingData) {
+                  if (storedPaymentType === 'booking' && !bookingCreationSuccess) {
                     Alert.alert(
                       'Payment Successful!',
                       'Your payment was successful, but there was an issue creating your booking. Please contact support with your order ID for assistance.',
@@ -244,7 +259,7 @@ export default function PaymentSuccessScreen() {
         }}
       >
         <Text style={styles.buttonText}>
-          {paymentType === 'shop' ? 'View Nearby Shops' : 'View Booking Details'}
+          {paymentType === 'shop' ? 'View Nearby Shops' : (bookingId ? 'View Booking Details' : 'View Bookings')}
         </Text>
       </TouchableOpacity>
     </View>
