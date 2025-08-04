@@ -111,6 +111,11 @@ const PaymentScreen = () => {
 
         const data = await res.json();
         
+        // Debug: Log the response data
+        console.log('🔍 Backend response data:', data);
+        console.log('🔍 isMockOrder flag:', data.isMockOrder);
+        console.log('🔍 Order data:', data.order);
+        
         // Check for server errors
         if (!res.ok) {
           throw new Error(data.message || 'Failed to create payment order');
@@ -122,7 +127,7 @@ const PaymentScreen = () => {
 
         const { id: order_id, amount, currency } = data.order;
 
-        // Check if this is a mock order (for testing) or if we're in development mode
+        // Check if this is a mock order (for testing)
         if (data.isMockOrder) {
           console.log('🎭 Mock order detected for shop payment, showing success message');
           // Store payment type for mock shop payment
@@ -278,6 +283,11 @@ const PaymentScreen = () => {
 
       const data = await res.json();
       
+      // Debug: Log the response data
+      console.log('🔍 Backend response data (booking):', data);
+      console.log('🔍 isMockOrder flag (booking):', data.isMockOrder);
+      console.log('🔍 Order data (booking):', data.order);
+      
       // Check for server errors
       if (!res.ok) {
         throw new Error(data.message || 'Failed to create payment order');
@@ -289,7 +299,7 @@ const PaymentScreen = () => {
 
       const { id: order_id, amount, currency } = data.order;
 
-      // Check if this is a mock order (for testing) - only for development
+      // Check if this is a mock order (for testing)
       if (data.isMockOrder) {
         console.log('🎭 Mock order detected, showing success message');
         // Store payment type for mock payment
