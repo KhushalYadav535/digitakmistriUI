@@ -62,10 +62,39 @@ const PaymentScreen = () => {
   const handlePayNow = async () => {
     setLoading(true);
     try {
+      // Debug: Log payment initiation
+      console.log('🚀 Payment initiated with config:', {
+        API_URL,
+        RAZORPAY_CONFIG: RAZORPAY_CONFIG.key_id,
+        isDevelopment: __DEV__,
+        displayAmount
+      });
+
       const token = await AsyncStorage.getItem('token');
       if (!token) {
         Alert.alert('Error', 'Please login to make payment');
         return;
+      }
+
+      // Test backend connectivity first
+      try {
+        console.log('🔍 Testing backend connectivity...');
+        const testResponse = await fetch(`${API_URL}/payment/test`, {
+          method: 'GET',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (testResponse.ok) {
+          const testData = await testResponse.json();
+          console.log('✅ Backend connectivity test successful:', testData);
+        } else {
+          console.warn('⚠️ Backend connectivity test failed:', testResponse.status);
+        }
+      } catch (testError) {
+        console.warn('⚠️ Backend connectivity test error:', testError);
       }
 
       // Parse booking data from params
@@ -85,20 +114,26 @@ const PaymentScreen = () => {
 
         // Call backend to create Razorpay order for shop payment
         console.log('💰 Creating Razorpay order for shop payment with amount:', displayAmount * 100);
+        console.log('🔗 API URL:', `${API_URL}/payment/create-order`);
+        
+        const requestBody = { 
+          amount: displayAmount * 100, // Convert to paise
+          currency: 'INR',
+          notes: {
+            customFlow: 'addNearbyShop',
+            shopData: JSON.stringify(shopData)
+          }
+        };
+        
+        console.log('📤 Request body:', requestBody);
+        
         const res = await fetch(`${API_URL}/payment/create-order`, {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({ 
-            amount: displayAmount * 100, // Convert to paise
-            currency: 'INR',
-            notes: {
-              customFlow: 'addNearbyShop',
-              shopData: JSON.stringify(shopData)
-            }
-          })
+          body: JSON.stringify(requestBody)
         });
 
         // Check if response is JSON
@@ -163,6 +198,15 @@ const PaymentScreen = () => {
           return;
         }
 
+        // Debug: Log Razorpay configuration
+        console.log('🔧 Razorpay Checkout Configuration:', {
+          key: RAZORPAY_CONFIG.key_id,
+          amount: amount,
+          currency: currency,
+          order_id: order_id,
+          isDevelopment: __DEV__
+        });
+
         // Open Razorpay Checkout for shop payment
         RazorpayCheckout.open({
           key: RAZORPAY_CONFIG.key_id,
@@ -176,7 +220,7 @@ const PaymentScreen = () => {
             contact: shopData.phone || '',
           },
           theme: { color: '#007AFF' },
-          // Add test mode configuration
+          // Simplified configuration for better compatibility
           config: {
             display: {
               blocks: {
@@ -214,17 +258,34 @@ const PaymentScreen = () => {
           })
           .catch((error: any) => {
             // Payment Failed
+            console.error('🔴 Shop payment failed:', error);
+            console.error('🔴 Error details:', {
+              code: error?.code,
+              description: error?.description,
+              reason: error?.reason,
+              message: error?.message,
+              error: error
+            });
+            
             let userMessage = 'Payment was not completed.';
             if (error && typeof error === 'object') {
               if (error.code === 'NETWORK_ERROR') {
                 userMessage = 'Network error. Please check your internet connection and try again.';
+              } else if (error.code === 'PAYMENT_CANCELLED') {
+                userMessage = 'Payment was cancelled by user.';
+              } else if (error.code === 'INVALID_ORDER_ID') {
+                userMessage = 'Invalid order. Please try again.';
+              } else if (error.code === 'INVALID_AMOUNT') {
+                userMessage = 'Invalid amount. Please check your payment details.';
               } else if (error.description) {
                 userMessage = error.description;
               } else if (error.reason === 'Payment cancelled by user') {
                 userMessage = 'Payment was cancelled.';
+              } else if (error.message) {
+                userMessage = error.message;
               }
             }
-            console.error('Shop payment failed:', error);
+            
             Alert.alert('Payment Failed', userMessage);
           });
         return;
@@ -257,20 +318,26 @@ const PaymentScreen = () => {
 
       // Call backend to create Razorpay order (without booking ID since booking will be created after payment)
       console.log('💰 Creating Razorpay order with amount:', displayAmount * 100);
+      console.log('🔗 API URL:', `${API_URL}/payment/create-order`);
+      
+      const requestBody = { 
+        amount: displayAmount * 100, // Convert to paise
+        currency: 'INR',
+        notes: {
+          isMultipleService,
+          bookingData: JSON.stringify(bookingData)
+        }
+      };
+      
+      console.log('📤 Request body:', requestBody);
+      
       const res = await fetch(`${API_URL}/payment/create-order`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ 
-          amount: displayAmount * 100, // Convert to paise
-          currency: 'INR',
-          notes: {
-            isMultipleService,
-            bookingData: JSON.stringify(bookingData)
-          }
-        })
+        body: JSON.stringify(requestBody)
       });
 
       // Check if response is JSON
@@ -332,39 +399,48 @@ const PaymentScreen = () => {
         return;
       }
 
-              // Open Razorpay Checkout
+        // Debug: Log Razorpay configuration for booking
+        console.log('🔧 Razorpay Checkout Configuration (Booking):', {
+          key: RAZORPAY_CONFIG.key_id,
+          amount: amount,
+          currency: currency,
+          order_id: order_id,
+          isDevelopment: __DEV__
+        });
+
+        // Open Razorpay Checkout
         RazorpayCheckout.open({
           key: RAZORPAY_CONFIG.key_id,
-        amount: amount,
-        currency: currency,
-        name: 'Digital Mistri',
-        description: isMultipleService ? 'Multiple Services Payment' : 'Service Payment',
-        order_id,
-        prefill: {
-          email: user?.email || 'customer@example.com',
-          contact: bookingData.phone,
-        },
-        theme: { color: '#007AFF' },
-        // Add test mode configuration
-        config: {
-          display: {
-            blocks: {
-              banks: {
-                name: "Pay using UPI",
-                instruments: [
-                  {
-                    method: "upi"
-                  }
-                ]
+          amount: amount,
+          currency: currency,
+          name: 'Digital Mistri',
+          description: isMultipleService ? 'Multiple Services Payment' : 'Service Payment',
+          order_id,
+          prefill: {
+            email: user?.email || 'customer@example.com',
+            contact: bookingData.phone,
+          },
+          theme: { color: '#007AFF' },
+          // Simplified configuration for better compatibility
+          config: {
+            display: {
+              blocks: {
+                banks: {
+                  name: "Pay using UPI",
+                  instruments: [
+                    {
+                      method: "upi"
+                    }
+                  ]
+                }
+              },
+              sequence: ["block.banks"],
+              preferences: {
+                show_default_blocks: false
               }
-            },
-            sequence: ["block.banks"],
-            preferences: {
-              show_default_blocks: false
             }
           }
-        }
-      })
+        })
         .then((paymentData: any) => {
           // Payment Success
           console.log('Payment successful:', paymentData);
@@ -380,22 +456,56 @@ const PaymentScreen = () => {
         })
         .catch((error: any) => {
           // Payment Failed
+          console.error('🔴 Booking payment failed:', error);
+          console.error('🔴 Error details:', {
+            code: error?.code,
+            description: error?.description,
+            reason: error?.reason,
+            message: error?.message,
+            error: error
+          });
+          
           let userMessage = 'Payment was not completed.';
           if (error && typeof error === 'object') {
             if (error.code === 'NETWORK_ERROR') {
               userMessage = 'Network error. Please check your internet connection and try again.';
+            } else if (error.code === 'PAYMENT_CANCELLED') {
+              userMessage = 'Payment was cancelled by user.';
+            } else if (error.code === 'INVALID_ORDER_ID') {
+              userMessage = 'Invalid order. Please try again.';
+            } else if (error.code === 'INVALID_AMOUNT') {
+              userMessage = 'Invalid amount. Please check your payment details.';
             } else if (error.description) {
               userMessage = error.description;
             } else if (error.reason === 'Payment cancelled by user') {
               userMessage = 'Payment was cancelled.';
+            } else if (error.message) {
+              userMessage = error.message;
             }
           }
-          console.error('Payment failed:', error); // Log for debugging
+          
           Alert.alert('Payment Failed', userMessage);
         });
     } catch (err: any) {
-      console.error('Payment error:', err);
-      Alert.alert('Error', err.message || 'Failed to initiate payment');
+      console.error('🔴 Payment error:', err);
+      console.error('🔴 Error details:', {
+        message: err.message,
+        stack: err.stack,
+        name: err.name,
+        error: err
+      });
+      
+      let errorMessage = 'Failed to initiate payment';
+      
+      if (err.message) {
+        errorMessage = err.message;
+      } else if (err.name === 'TypeError' && err.message.includes('fetch')) {
+        errorMessage = 'Network error. Please check your internet connection.';
+      } else if (err.name === 'TypeError' && err.message.includes('JSON')) {
+        errorMessage = 'Invalid response from server. Please try again.';
+      }
+      
+      Alert.alert('Payment Error', errorMessage);
     } finally {
       setLoading(false);
     }

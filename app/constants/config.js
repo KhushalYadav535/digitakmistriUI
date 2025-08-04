@@ -4,7 +4,7 @@ const LOCAL_API = 'http://192.168.1.3:5000/api'; // <-- Updated to your current 
 const PROD_API = 'https://digital-mistri.onrender.com/api';
 
 // Check if we're in development mode
-const isDevelopment = __DEV__ || process.env.NODE_ENV === 'development';
+const isDevelopment = __DEV__ || process.env.NODE_ENV === 'development'; 
 
 // API Configuration
 export const API_CONFIG = {
@@ -35,8 +35,9 @@ export const ENV = isDevelopment ? 'development' : 'production';
 export const SOCKET_URL = isDevelopment ? 'http://192.168.1.3:5000' : 'https://digital-mistri.onrender.com';
 
 // Razorpay Configuration
+// Use consistent test keys for both development and APK testing
 export const RAZORPAY_CONFIG = {
-  key_id: isDevelopment ? 'rzp_test_yCyh9MfP8o6z3K' : 'rzp_live_YOUR_LIVE_KEY', // Replace with your live key for production
+  key_id: 'rzp_test_yCyh9MfP8o6z3K', // Use test key for both dev and APK testing
   currency: 'INR',
   name: 'Digital Mistri',
   description: 'Service Payment',
