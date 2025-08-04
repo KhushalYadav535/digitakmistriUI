@@ -151,6 +151,17 @@ const PaymentScreen = () => {
         console.log('🔍 isMockOrder flag:', data.isMockOrder);
         console.log('🔍 Order data:', data.order);
         
+        // Additional validation for shop payments
+        if (customFlow === 'addNearbyShop') {
+          console.log('🏪 Shop payment validation:', {
+            hasOrder: !!data.order,
+            orderId: data.order?.id,
+            orderIdType: typeof data.order?.id,
+            orderIdLength: data.order?.id?.length,
+            orderKeys: data.order ? Object.keys(data.order) : 'no order'
+          });
+        }
+        
         // Check for server errors
         if (!res.ok) {
           throw new Error(data.message || 'Failed to create payment order');
@@ -198,14 +209,43 @@ const PaymentScreen = () => {
           return;
         }
 
-        // Debug: Log Razorpay configuration
-        console.log('🔧 Razorpay Checkout Configuration:', {
+        // Debug: Log Razorpay configuration for shop payment
+        console.log('🔧 Razorpay Checkout Configuration (Shop):', {
           key: RAZORPAY_CONFIG.key_id,
           amount: amount,
           currency: currency,
           order_id: order_id,
-          isDevelopment: __DEV__
+          isDevelopment: __DEV__,
+          shopData: shopData
         });
+
+        // Validate order_id before opening Razorpay
+        if (!order_id || order_id === 'undefined' || order_id === 'null') {
+          console.error('❌ Invalid order_id for shop payment:', order_id);
+          Alert.alert('Payment Error', 'Invalid order ID. Please try again.');
+          setLoading(false);
+          return;
+        }
+
+        // Additional validation for shop payment order ID
+        if (customFlow === 'addNearbyShop') {
+          console.log('🏪 Shop payment order ID validation:', {
+            order_id,
+            orderIdType: typeof order_id,
+            orderIdLength: order_id?.length,
+            orderIdStartsWith: order_id?.startsWith('order_'),
+            orderIdValid: /^order_[a-zA-Z0-9]+$/.test(order_id)
+          });
+          
+          if (!order_id.startsWith('order_')) {
+            console.error('❌ Shop payment order ID format invalid:', order_id);
+            Alert.alert('Payment Error', 'Invalid order format. Please try again.');
+            setLoading(false);
+            return;
+          }
+        }
+
+        console.log('✅ Opening Razorpay checkout for shop payment with order_id:', order_id);
 
         // Open Razorpay Checkout for shop payment
         RazorpayCheckout.open({
