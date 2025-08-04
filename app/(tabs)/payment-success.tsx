@@ -70,12 +70,29 @@ export default function PaymentSuccessScreen() {
               // Clear pending booking data after successful creation
               await AsyncStorage.removeItem('pendingBookingData');
             } else {
-              console.error('❌ Failed to create booking:', await bookingResponse.text());
-              throw new Error('Failed to create booking after payment');
+              const errorText = await bookingResponse.text();
+              console.error('❌ Failed to create booking:', errorText);
+              // Don't throw error, just log it and continue
+              console.warn('⚠️ Booking creation failed, but payment was successful. User can try again.');
+              
+              // Store error info for user feedback
+              await AsyncStorage.setItem('bookingCreationError', JSON.stringify({
+                orderId: order_id,
+                error: errorText,
+                timestamp: new Date().toISOString()
+              }));
             }
-          } catch (bookingError) {
+          } catch (bookingError: any) {
             console.error('❌ Error creating booking:', bookingError);
-            throw new Error('Failed to create booking after payment');
+            // Don't throw error, just log it and continue
+            console.warn('⚠️ Booking creation failed, but payment was successful. User can try again.');
+            
+            // Store error info for user feedback
+            await AsyncStorage.setItem('bookingCreationError', JSON.stringify({
+              orderId: order_id,
+              error: bookingError?.message || 'Unknown error',
+              timestamp: new Date().toISOString()
+            }));
           }
         }
 
@@ -130,8 +147,22 @@ export default function PaymentSuccessScreen() {
                   // Navigate to nearby shops for shop payments
                   router.replace('/(tabs)/nearby-shops');
                 } else {
-                  // Fallback to bookings list
-                  router.replace('/(tabs)/bookings');
+                  // Show a message if booking creation failed but payment was successful
+                  if (storedPaymentType === 'booking' && pendingBookingData) {
+                    Alert.alert(
+                      'Payment Successful!',
+                      'Your payment was successful, but there was an issue creating your booking. Please contact support with your order ID for assistance.',
+                      [
+                        {
+                          text: 'OK',
+                          onPress: () => router.replace('/(tabs)/bookings')
+                        }
+                      ]
+                    );
+                  } else {
+                    // Fallback to bookings list
+                    router.replace('/(tabs)/bookings');
+                  }
                 }
               }
             }
