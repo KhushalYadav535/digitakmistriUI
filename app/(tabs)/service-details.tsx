@@ -34,7 +34,7 @@ const serviceDetails = {
       {
         title: 'Toti Installation',
         subtitle: 'Install toti',
-               price: '₹8',
+               price: '₹50',
         charges: 'Per piece + ₹10/km',
       },
     ],

@@ -1,6 +1,6 @@
 // Use your computer's local IP for device testing on real devices
 // Update this to your actual local IP and port if needed
-const LOCAL_API = 'http://192.168.1.3:5000/api'; // <-- Updated to your current IP address
+const LOCAL_API = 'http://192.168.1.10:5000/api'; // <-- Updated to your current IP address
 const PROD_API = 'https://digital-mistri.onrender.com/api';
 
 // Check if we're in development mode
@@ -32,7 +32,7 @@ export const API_ERRORS = {
 
 export const ENV = isDevelopment ? 'development' : 'production';
 
-export const SOCKET_URL = isDevelopment ? 'http://192.168.1.3:5000' : 'https://digital-mistri.onrender.com';
+export const SOCKET_URL = isDevelopment ? 'http://192.168.1.10:5000' : 'https://digital-mistri.onrender.com';
 
 // Razorpay Configuration
 // Live keys for production payments

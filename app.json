@@ -2,7 +2,7 @@
   "expo": {
     "name": "Digital Mistri",
     "slug": "digital",
-    "version": "1.1.1",
+    "version": "1.1.2",
     "orientation": "portrait",
     "icon": "./assets/images/applogo.png",
     "scheme": "digital",
@@ -18,7 +18,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.khushalyadav535.digital",
-      "versionCode": 17,
+      "versionCode": 18,
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE"

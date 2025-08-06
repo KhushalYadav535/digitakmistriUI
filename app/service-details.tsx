@@ -47,7 +47,7 @@ const serviceMeta = {
             {
                 title: 'Toti Installation',
                 subtitle: 'Install toti',
-                price: '₹8',
+                price: '₹50',
                 extra: 'Per piece + ₹10/km',
             },
         ],

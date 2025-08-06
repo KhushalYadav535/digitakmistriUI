@@ -37,7 +37,7 @@ const serviceMeta: Record<string, ServiceMetaItem> = {
       { title: 'Basin Set Fitting/Repair', price: '₹200' },
       { title: 'Flush Tank Service', price: '₹300' },
       { title: 'Wiring Related Repair', price: '₹250' },
-      { title: 'Toti Installation', price: '₹8' },
+      { title: 'Toti Installation', price: '₹50' },
     ],
   },
   electrician: {
