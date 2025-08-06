@@ -35,9 +35,9 @@ export const ENV = isDevelopment ? 'development' : 'production';
 export const SOCKET_URL = isDevelopment ? 'http://192.168.1.3:5000' : 'https://digital-mistri.onrender.com';
 
 // Razorpay Configuration
-// Use consistent test keys for both development and APK testing
+// Live keys for production payments
 export const RAZORPAY_CONFIG = {
-  key_id: 'rzp_test_yCyh9MfP8o6z3K', // Use test key for both dev and APK testing
+  key_id: 'rzp_live_y6obsZdo01uDnc', // Live key for real payments
   currency: 'INR',
   name: 'Digital Mistri',
   description: 'Service Payment',
